@@ -1,0 +1,715 @@
+<!--
+  ============================================================
+  ELEMENTARY SCHOOL — EARLY WARNING & RISK TIERING SYSTEM
+  Frontend (HTML5 + CSS3 + Vanilla JS), single-file SPA
+  ------------------------------------------------------------
+  • Login portal  • Teacher Dashboard  • AI Predictive Engine
+  • Bulk CSV Upload  • Proactive Alerts  • PDF Export
+  ------------------------------------------------------------
+  BACKEND HOOK: set USE_BACKEND = true (see <script> bottom)
+  to POST features to the Flask /predict endpoint.
+  Otherwise a local heuristic mirrors the model for the demo.
+  ============================================================
+-->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --mint:#5fd0a8; --mint-soft:#e2f8ef;
+    --blue:#6cb6f5; --blue-soft:#e3f0fd;
+    --ink:#2b3a4a; --ink-soft:#6b7d8f;
+    --line:#e7eef4; --card:#ffffff;
+    --exc-bg:#cdf2dd; --exc-tx:#1f7a4d;
+    --good-bg:#d6e9fb; --good-tx:#1f5f9e;
+    --avg-bg:#fcefc7; --avg-tx:#8f6d12;
+    --poor-bg:#fbd9d9; --poor-tx:#b04545;
+    --shadow:0 10px 30px -12px rgba(43,58,74,.18);
+    --radius:18px;
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);color:var(--ink);background:
+    radial-gradient(1200px 600px at 10% -10%,var(--mint-soft),transparent 60%),
+    radial-gradient(1000px 600px at 110% 10%,var(--blue-soft),transparent 55%),
+    #f6fafc;min-height:100vh;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;border:none}
+  input,select{font-family:inherit}
+
+  /* ---------- LOGIN ---------- */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{width:100%;max-width:420px;background:rgba(255,255,255,.85);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.6);border-radius:26px;box-shadow:var(--shadow);
+    padding:38px 34px;animation:rise .6s cubic-bezier(.2,.8,.2,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  .logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:#fff;
+    background:linear-gradient(135deg,var(--mint),var(--blue));box-shadow:0 8px 18px -8px var(--blue)}
+  .brand h1{font-size:17px;line-height:1.2}
+  .brand p{font-size:12px;color:var(--ink-soft)}
+  .field{margin-top:16px}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+  .field input{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:13px;
+    font-size:14.5px;background:#fff;transition:.18s}
+  .field input:focus{outline:none;border-color:var(--mint);box-shadow:0 0 0 4px var(--mint-soft)}
+  .field input.invalid{border-color:#e89595;box-shadow:0 0 0 4px #fbe3e3;animation:shake .35s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .err{font-size:12px;color:var(--poor-tx);margin-top:5px;height:0;opacity:0;transition:.2s}
+  .err.show{height:auto;opacity:1}
+  .btn{width:100%;margin-top:24px;padding:14px;border-radius:13px;font-size:15px;font-weight:700;color:#fff;
+    background:linear-gradient(135deg,var(--mint),var(--blue));box-shadow:0 12px 24px -12px var(--blue);
+    transition:.18s}
+  .btn:hover{transform:translateY(-1px);filter:brightness(1.03)}
+  .btn:active{transform:translateY(0)}
+  .hint{margin-top:16px;font-size:12px;color:var(--ink-soft);text-align:center}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none;min-height:100vh}
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:248px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);
+    padding:22px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+  .side-brand{display:flex;align-items:center;gap:11px;padding:6px 8px 18px}
+  .side-brand .logo{width:38px;height:38px;border-radius:11px}
+  .side-brand b{font-size:14.5px}
+  .side-brand span{font-size:11px;color:var(--ink-soft);display:block}
+  .nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .nav button{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:12px;
+    background:transparent;color:var(--ink-soft);font-size:14px;font-weight:600;text-align:left;transition:.15s}
+  .nav button:hover{background:#f4f8fb;color:var(--ink)}
+  .nav button.active{background:var(--mint-soft);color:var(--exc-tx)}
+  .nav svg{width:19px;height:19px;flex-shrink:0}
+  .side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+  .side-foot button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 13px;border-radius:12px;
+    background:transparent;color:var(--ink-soft);font-size:14px;font-weight:600}
+  .side-foot button:hover{background:#fdf0f0;color:var(--poor-tx)}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 30px;
+    border-bottom:1px solid var(--line);background:rgba(255,255,255,.7);backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:20}
+  .topbar h2{font-size:18px}
+  .top-right{display:flex;align-items:center;gap:14px}
+  .bell{position:relative;width:42px;height:42px;border-radius:12px;background:#f4f8fb;display:grid;place-items:center}
+  .bell:hover{background:#eaf1f6}
+  .bell .dot{position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;background:#f06464;border:2px solid #fff}
+  .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--mint),var(--blue));
+    color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+  .content{padding:30px;max-width:1180px;width:100%}
+
+  .page{display:none;animation:fade .4s}
+  .page.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ---------- DASHBOARD ---------- */
+  .banner{background:linear-gradient(120deg,var(--mint-soft),var(--blue-soft));border-radius:var(--radius);
+    padding:26px 30px;margin-bottom:24px;border:1px solid #fff}
+  .banner h3{font-size:23px;margin-bottom:5px}
+  .banner p{color:var(--ink-soft);font-size:14px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:26px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+  .stat .ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;margin-bottom:14px}
+  .stat .lbl{font-size:13px;color:var(--ink-soft);font-weight:600}
+  .stat .val{font-size:31px;font-weight:800;margin-top:3px}
+  .stat .sub{font-size:12px;color:var(--ink-soft);margin-top:4px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--line)}
+  .panel-head h4{font-size:16px}
+  .panel-head .sm{font-size:12.5px;color:var(--ink-soft)}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft);
+    padding:13px 24px;border-bottom:1px solid var(--line);font-weight:700}
+  td{padding:14px 24px;font-size:14px;border-bottom:1px solid #f1f6f9}
+  tbody tr:hover{background:#fafcfe}
+  tbody tr:last-child td{border-bottom:none}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:12.5px;font-weight:700}
+  .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.7}
+  .b-exc{background:var(--exc-bg);color:var(--exc-tx)}
+  .b-good{background:var(--good-bg);color:var(--good-tx)}
+  .b-avg{background:var(--avg-bg);color:var(--avg-tx)}
+  .b-poor{background:var(--poor-bg);color:var(--poor-tx)}
+  .mini{padding:7px 13px;border-radius:9px;font-size:12.5px;font-weight:700;background:#f4f8fb;color:var(--ink)}
+  .mini:hover{background:#e9f1f6}
+  .table-wrap{max-height:420px;overflow:auto}
+
+  /* ---------- PREDICT FORM ---------- */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .fcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;box-shadow:var(--shadow)}
+  .fc-title{font-size:16px;margin-bottom:4px}
+  .fc-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px}
+  .ff{margin-bottom:16px}
+  .ff label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}
+  .ff label .v{float:right;color:var(--mint);font-weight:800}
+  .ff select,.ff input[type=number]{width:100%;padding:11px 12px;border:1.5px solid var(--line);
+    border-radius:11px;font-size:14px;background:#fff;transition:.15s}
+  .ff select:focus,.ff input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-soft)}
+  input[type=range]{width:100%;accent-color:var(--mint);height:6px}
+  .radios{display:flex;gap:10px}
+  .radios label{flex:1;border:1.5px solid var(--line);border-radius:11px;padding:11px;text-align:center;
+    font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+  .radios input{display:none}
+  .radios input:checked + span{}
+  .radios label.sel{border-color:var(--mint);background:var(--mint-soft);color:var(--exc-tx)}
+  .run{margin-top:6px;width:100%;padding:15px;border-radius:13px;font-size:15.5px;font-weight:800;color:#fff;
+    background:linear-gradient(135deg,var(--mint),var(--blue));box-shadow:0 14px 26px -12px var(--blue)}
+  .run:hover{filter:brightness(1.04);transform:translateY(-1px)}
+  .run:disabled{opacity:.6;cursor:wait;transform:none}
+
+  /* loading */
+  .loading{display:none;flex-direction:column;align-items:center;gap:16px;padding:40px}
+  .loading.show{display:flex}
+  .ring{width:54px;height:54px;border-radius:50%;border:5px solid var(--mint-soft);
+    border-top-color:var(--mint);animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading p{font-size:14px;color:var(--ink-soft);font-weight:600}
+
+  /* result */
+  .result{display:none}
+  .result.show{display:block;animation:fade .45s}
+  .res-hero{border-radius:var(--radius);padding:26px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden}
+  .res-hero h3{font-size:14px;opacity:.9;font-weight:600}
+  .res-hero .tier{font-size:34px;font-weight:900;margin:2px 0 6px}
+  .res-hero p{font-size:13.5px;opacity:.92;max-width:520px}
+  .recs{list-style:none}
+  .recs li{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid #f1f6f9;font-size:14px}
+  .recs li:last-child{border:none}
+  .recs .tick{width:22px;height:22px;border-radius:7px;flex-shrink:0;display:grid;place-items:center;
+    background:var(--mint-soft);color:var(--exc-tx);font-weight:900;font-size:13px}
+
+  /* ---------- BULK UPLOAD ---------- */
+  .drop{border:2.5px dashed #c7d8e6;border-radius:var(--radius);background:#fff;padding:46px 24px;
+    text-align:center;transition:.18s;cursor:pointer}
+  .drop:hover,.drop.drag{border-color:var(--mint);background:var(--mint-soft)}
+  .drop .di{width:60px;height:60px;border-radius:16px;background:var(--blue-soft);color:var(--blue);
+    display:grid;place-items:center;margin:0 auto 14px}
+  .drop h4{font-size:16px;margin-bottom:5px}
+  .drop p{font-size:13px;color:var(--ink-soft)}
+
+  /* alerts dropdown */
+  .alerts{position:absolute;top:64px;right:30px;width:340px;background:#fff;border:1px solid var(--line);
+    border-radius:16px;box-shadow:0 18px 50px -16px rgba(43,58,74,.3);z-index:40;display:none;overflow:hidden}
+  .alerts.show{display:block;animation:fade .25s}
+  .alerts .ah{padding:15px 18px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px}
+  .alerts .ai{display:flex;gap:11px;padding:13px 18px;border-bottom:1px solid #f1f6f9}
+  .alerts .ai:last-child{border:none}
+  .alerts .adot{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;
+    background:var(--poor-bg);color:var(--poor-tx)}
+  .alerts .at{font-size:13.5px;font-weight:700}
+  .alerts .as{font-size:12px;color:var(--ink-soft);margin-top:2px}
+
+  .row{display:flex;gap:9px}
+  @media(max-width:860px){
+    .sidebar{display:none}.cards{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}
+    .content{padding:18px}.topbar{padding:14px 18px}.alerts{right:14px;left:14px;width:auto}
+  }
+</style>
+
+<!-- ================= LOGIN ================= -->
+<section id="login">
+  <div class="login-card">
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+      </div>
+      <div><h1>EarlyBird EWS</h1><p>Early Warning &amp; Risk Tiering</p></div>
+    </div>
+    <div class="field">
+      <label>Username / Email</label>
+      <input id="lu" type="text" placeholder="teacher@school.edu" autocomplete="username"/>
+      <div class="err" id="eu">Please enter your email or username.</div>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="lp" type="password" placeholder="••••••••" autocomplete="current-password"/>
+      <div class="err" id="ep">Password must be at least 4 characters.</div>
+    </div>
+    <button class="btn" id="loginBtn">Sign in to Dashboard</button>
+    <p class="hint">Demo: type any email &amp; a 4+ char password to enter.</p>
+  </div>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <div class="shell">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="side-brand">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" width="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        </div>
+        <div><b>EarlyBird EWS</b><span>Teacher Portal</span></div>
+      </div>
+      <nav class="nav" id="nav">
+        <button data-p="dash" class="active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          Dashboard
+        </button>
+        <button data-p="predict">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.4-1.5 3.2C13.8 10 13 11 13 12.5h-2C11 11 10.2 10 9.5 9.2 8.8 8.4 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 18h6M10 21h4"/></svg>
+          AI Predictive Engine
+        </button>
+        <button data-p="bulk">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          Bulk CSV Upload
+        </button>
+      </nav>
+      <div class="side-foot">
+        <button id="logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>
+          Sign out
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="topbar">
+        <h2 id="ptitle">Dashboard</h2>
+        <div class="top-right">
+          <div class="bell" id="bell">
+            <svg viewBox="0 0 24 24" width="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="dot"></span>
+          </div>
+          <div class="avatar" id="avatar">S</div>
+        </div>
+      </div>
+
+      <!-- Alerts dropdown -->
+      <div class="alerts" id="alerts">
+        <div class="ah">⚠️ Proactive Alerts — this week</div>
+        <div id="alertList"></div>
+      </div>
+
+      <div class="content">
+        <!-- ===== DASHBOARD ===== -->
+        <section class="page active" id="dash">
+          <div class="banner">
+            <h3 id="welcome">Good morning, Teacher 👋</h3>
+            <p>Here's how your class is tracking today. <b id="hiCount">0</b> students need attention.</p>
+          </div>
+          <div class="cards">
+            <div class="stat">
+              <div class="ico" style="background:var(--mint-soft);color:var(--exc-tx)">
+                <svg viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div class="lbl">Total Monitored Students</div>
+              <div class="val" id="sTotal">0</div>
+              <div class="sub">Across all subjects</div>
+            </div>
+            <div class="stat">
+              <div class="ico" style="background:var(--poor-bg);color:var(--poor-tx)">
+                <svg viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+              </div>
+              <div class="lbl">Students at High Risk</div>
+              <div class="val" id="sRisk">0</div>
+              <div class="sub">Poor / Average tiers</div>
+            </div>
+            <div class="stat">
+              <div class="ico" style="background:var(--blue-soft);color:var(--good-tx)">
+                <svg viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+              </div>
+              <div class="lbl">Average Class Attendance</div>
+              <div class="val" id="sAtt">0%</div>
+              <div class="sub">Rolling 30-day window</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div><h4>Student Risk Roster</h4><div class="sm">Predicted tiers from the model</div></div>
+              <button class="mini" id="addBtn">+ Evaluate new student</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Student</th><th>Grade</th><th>Subject</th><th>Attend.</th><th>Exam</th><th>Risk Tier</th><th></th></tr></thead>
+                <tbody id="roster"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== PREDICT ===== -->
+        <section class="page" id="predict">
+          <div class="form-grid">
+            <div class="fcard">
+              <div class="fc-title">AI Risk Assessment</div>
+              <div class="fc-sub">Enter the student's metrics to predict their performance tier.</div>
+
+              <div class="ff">
+                <label>Grade Level</label>
+                <select id="fGrade">
+                  <option value="1">Grade 1</option><option value="2">Grade 2</option>
+                  <option value="3" selected>Grade 3</option><option value="4">Grade 4</option>
+                  <option value="5">Grade 5</option><option value="6">Grade 6</option>
+                </select>
+              </div>
+              <div class="ff">
+                <label>Subject</label>
+                <select id="fSubject">
+                  <option value="0">Math</option><option value="1">Language Arts</option><option value="2">Science</option>
+                </select>
+              </div>
+              <div class="ff">
+                <label>Attendance Percentage <span class="v" id="vAtt">90%</span></label>
+                <input type="range" id="fAtt" min="0" max="100" value="90"/>
+              </div>
+              <div class="ff">
+                <label>Assignment Completion Rate <span class="v" id="vComp">85%</span></label>
+                <input type="range" id="fComp" min="0" max="100" value="85"/>
+              </div>
+              <div class="ff">
+                <label>Mid-Term Exam Score</label>
+                <input type="number" id="fExam" min="0" max="100" value="78"/>
+              </div>
+              <div class="ff">
+                <label>Teacher-Observed Stress Level</label>
+                <div class="radios" id="fStress">
+                  <label class="sel"><input type="radio" name="st" value="0" checked><span>Low</span></label>
+                  <label><input type="radio" name="st" value="1"><span>Medium</span></label>
+                  <label><input type="radio" name="st" value="2"><span>High</span></label>
+                </div>
+              </div>
+              <button class="run" id="runBtn">⚡ Run AI Risk Assessment</button>
+            </div>
+
+            <div class="fcard">
+              <div class="loading" id="loading">
+                <div class="ring"></div>
+                <p id="loadMsg">Analyzing student signals…</p>
+              </div>
+
+              <div id="placeholder" style="text-align:center;padding:46px 10px;color:var(--ink-soft)">
+                <div style="width:64px;height:64px;border-radius:18px;background:var(--mint-soft);color:var(--exc-tx);display:grid;place-items:center;margin:0 auto 14px">
+                  <svg viewBox="0 0 24 24" width="30" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.4-1.5 3.2C13.8 10 13 11 13 12.5h-2C11 11 10.2 10 9.5 9.2 8.8 8.4 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 18h6M10 21h4"/></svg>
+                </div>
+                <h4 style="font-size:16px;color:var(--ink)">Awaiting assessment</h4>
+                <p style="font-size:13.5px;margin-top:5px">Fill in the form and run the AI engine to see the predicted tier and tailored recommendations.</p>
+              </div>
+
+              <div class="result" id="result">
+                <div class="res-hero" id="resHero">
+                  <h3>Predicted Performance Tier</h3>
+                  <div class="tier" id="resTier">—</div>
+                  <p id="resDesc"></p>
+                </div>
+                <h4 style="font-size:15px;margin:6px 0 4px">Recommended pedagogical actions</h4>
+                <ul class="recs" id="resRecs"></ul>
+                <button class="mini" id="exportBtn" style="margin-top:14px">📄 Export PDF report</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== BULK ===== -->
+        <section class="page" id="bulk">
+          <div class="fcard" style="margin-bottom:22px">
+            <div class="fc-title">Bulk CSV Upload</div>
+            <div class="fc-sub">Drop a class spreadsheet to run batch predictions. Required columns:
+              <code>grade_level, subject, attendance_percentage, assignment_completion_rate, midterm_exam_score, teacher_observed_stress</code> (an optional <code>name</code> column is used for display).</div>
+            <div class="drop" id="drop">
+              <div class="di"><svg viewBox="0 0 24 24" width="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+              <h4>Drag &amp; drop your CSV here</h4>
+              <p>or click to browse · .csv files only</p>
+              <input type="file" id="file" accept=".csv" hidden/>
+            </div>
+            <button class="mini" id="sampleBtn" style="margin-top:14px">Load a sample class instead</button>
+          </div>
+          <div class="panel" id="bulkPanel" style="display:none">
+            <div class="panel-head"><div><h4>Batch Results</h4><div class="sm" id="bulkSum"></div></div></div>
+            <div class="table-wrap">
+              <table><thead><tr><th>Student</th><th>Grade</th><th>Subject</th><th>Attend.</th><th>Exam</th><th>Predicted Tier</th></tr></thead>
+              <tbody id="bulkRows"></tbody></table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+   Set USE_BACKEND = true once your Flask server is running.
+   The frontend will then POST to API_BASE + "/predict".
+   ============================================================ */
+const USE_BACKEND = true;
+const API_BASE = "http://localhost:5000";
+
+/* ---------- shared maps (identical to training) ---------- */
+const TIERS   = ["Excellent","Good","Average","Poor"];      // label 0..3
+const SUBJECTS= ["Math","Language Arts","Science"];          // subject_encoded 0..2
+const STRESS  = ["Low","Medium","High"];
+const BADGE   = ["b-exc","b-good","b-avg","b-poor"];
+
+/* ---------- tier descriptions + recommendations ---------- */
+const TIER_INFO = {
+  0:{grad:"linear-gradient(135deg,#5fd0a8,#3fb389)",
+     desc:"This student is thriving. Focus on enrichment and sustaining motivation.",
+     recs:["Offer advanced or open-ended challenge tasks to maintain engagement.",
+           "Invite them to peer-mentor classmates who are struggling.",
+           "Recognize achievement to reinforce intrinsic motivation.",
+           "Loop in parents with positive progress notes."]},
+  1:{grad:"linear-gradient(135deg,#6cb6f5,#4a93de)",
+     desc:"Solid performance with room to grow. Light, consistent touchpoints work best.",
+     recs:["Set one stretch goal per unit to push toward the top tier.",
+           "Brief weekly check-ins to catch small slips early.",
+           "Pair with an Excellent peer for collaborative work.",
+           "Share encouraging feedback that names specific strengths."]},
+  2:{grad:"linear-gradient(135deg,#f0c84a,#d8a72a)",
+     desc:"Showing early warning signs. Targeted support now prevents decline.",
+     recs:["Schedule small-group re-teaching on weak skill areas.",
+           "Introduce a simple assignment-tracking routine to lift completion.",
+           "Reach out to family to align home and school support.",
+           "Monitor attendance closely and follow up on absences."]},
+  3:{grad:"linear-gradient(135deg,#ef8181,#d96363)",
+     desc:"High risk — intervention needed. Coordinate support promptly.",
+     recs:["Arrange 1-on-1 instruction and a personalized learning plan.",
+           "Refer to the school counselor to address stress and wellbeing.",
+           "Hold a family meeting to build a shared intervention plan.",
+           "Set short daily goals with frequent, encouraging feedback."]}
+};
+
+/* ============================================================
+   LOCAL PREDICTOR — mirrors the model's intent for the demo.
+   When USE_BACKEND=true this is bypassed in favour of /predict.
+   ============================================================ */
+function localPredict(f){
+  let s = f.attendance*0.32 + f.completion*0.30 + f.midterm*0.30 + (2-f.stress)*4; // ~0-100
+  if(s>=85) return 0;
+  if(s>=70) return 1;
+  if(s>=55) return 2;
+  return 3;
+}
+async function predict(f){
+  if(USE_BACKEND){
+    try{
+      const r = await fetch(API_BASE+"/predict",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          grade_level:f.grade, subject_encoded:f.subject,
+          attendance_percentage:f.attendance, assignment_completion_rate:f.completion,
+          midterm_exam_score:f.midterm, teacher_observed_stress:f.stress})
+      });
+      const d = await r.json();
+      return d.label; // backend returns integer label 0..3
+    }catch(e){ console.warn("Backend unreachable, using local fallback.",e); }
+  }
+  return localPredict(f);
+}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+const $ = id => document.getElementById(id);
+let teacherName = "Sarah";
+
+$("loginBtn").onclick = ()=>{
+  const u=$("lu"), p=$("lp"); let ok=true;
+  const emailOk = u.value.trim().length>0;
+  const passOk  = p.value.length>=4;
+  toggle(u,"eu",emailOk); toggle(p,"ep",passOk);
+  if(!emailOk||!passOk) return;
+  // derive a friendly name from the email/username
+  const raw=u.value.split("@")[0].replace(/[._]/g," ").trim();
+  teacherName = raw ? raw.charAt(0).toUpperCase()+raw.slice(1) : "Teacher";
+  $("login").style.display="none";
+  $("app").style.display="block";
+  bootDashboard();
+};
+function toggle(input,errId,valid){
+  if(valid){input.classList.remove("invalid");$(errId).classList.remove("show");}
+  else{input.classList.add("invalid");$(errId).classList.add("show");}
+}
+[$("lu"),$("lp")].forEach(el=>el.addEventListener("input",()=>{
+  el.classList.remove("invalid");
+}));
+$("logout").onclick = ()=>{ $("app").style.display="none"; $("login").style.display="flex";
+  $("lu").value="";$("lp").value=""; };
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+const titles={dash:"Dashboard",predict:"AI Predictive Engine",bulk:"Bulk CSV Upload"};
+document.querySelectorAll("#nav button").forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    const p=b.dataset.p;
+    document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+    $(p).classList.add("active");
+    $("ptitle").textContent=titles[p];
+  };
+});
+$("addBtn").onclick=()=>document.querySelector('[data-p="predict"]').click();
+
+/* ============================================================
+   DEMO DATA + DASHBOARD
+   ============================================================ */
+const NAMES=["Mia Carter","Liam Brooks","Ava Nguyen","Noah Patel","Emma Reyes","Lucas Kim",
+"Sofia Diaz","Ethan Walsh","Isla Moore","Aiden Cruz","Zoe Bennett","Leo Flores","Ruby Shah",
+"Owen Park","Nora Webb","Eli Tran","Maya Foster","Jack Romero"];
+let students=[];
+function genStudents(){
+  students = NAMES.map((n,i)=>{
+    const f={grade:1+(i%6),subject:i%3,
+      attendance:60+Math.floor(Math.random()*40),
+      completion:55+Math.floor(Math.random()*45),
+      midterm:50+Math.floor(Math.random()*50),
+      stress:Math.floor(Math.random()*3)};
+    f.tier=localPredict(f); f.name=n; return f;
+  });
+}
+function bootDashboard(){
+  if(!students.length) genStudents();
+  $("welcome").textContent=`${greeting()}, Teacher ${teacherName} 👋`;
+  $("avatar").textContent=teacherName.charAt(0).toUpperCase();
+  const total=students.length;
+  const risk=students.filter(s=>s.tier>=2).length;
+  const att=Math.round(students.reduce((a,s)=>a+s.attendance,0)/total);
+  countUp($("sTotal"),total); countUp($("sRisk"),risk);
+  countUp($("sAtt"),att,"%"); $("hiCount").textContent=risk;
+  renderRoster(); renderAlerts();
+}
+function greeting(){const h=new Date().getHours();return h<12?"Good morning":h<18?"Good afternoon":"Good evening";}
+function countUp(el,target,suf=""){let n=0;const step=Math.max(1,Math.ceil(target/24));
+  const t=setInterval(()=>{n+=step;if(n>=target){n=target;clearInterval(t);}el.textContent=n+suf;},22);}
+function renderRoster(){
+  $("roster").innerHTML=students.map((s,i)=>`
+    <tr>
+      <td><b>${s.name}</b></td><td>Grade ${s.grade}</td><td>${SUBJECTS[s.subject]}</td>
+      <td>${s.attendance}%</td><td>${s.midterm}</td>
+      <td><span class="badge ${BADGE[s.tier]}">${TIERS[s.tier]}</span></td>
+      <td><button class="mini" onclick="exportStudent(${i})">PDF</button></td>
+    </tr>`).join("");
+}
+function renderAlerts(){
+  const drops=students.filter(s=>s.tier>=2).slice(0,4);
+  $("alertList").innerHTML=drops.map(s=>`
+    <div class="ai">
+      <div class="adot"><svg viewBox="0 0 24 24" width="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14l-7 7-7-7"/><path d="M12 3v18"/></svg></div>
+      <div><div class="at">${s.name} dropped to ${TIERS[s.tier]}</div>
+      <div class="as">Attendance ${s.attendance}% · Exam ${s.midterm} — review this week</div></div>
+    </div>`).join("") || `<div class="ai"><div class="as">No significant drops this week 🎉</div></div>`;
+}
+$("bell").onclick=()=>$("alerts").classList.toggle("show");
+document.addEventListener("click",e=>{
+  if(!e.target.closest("#bell")&&!e.target.closest("#alerts")) $("alerts").classList.remove("show");
+});
+
+/* ============================================================
+   PREDICT FORM
+   ============================================================ */
+$("fAtt").oninput=e=>$("vAtt").textContent=e.target.value+"%";
+$("fComp").oninput=e=>$("vComp").textContent=e.target.value+"%";
+document.querySelectorAll("#fStress label").forEach(l=>{
+  l.onclick=()=>{document.querySelectorAll("#fStress label").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");};
+});
+let lastResult=null;
+const LOAD_MSGS=["Reading student signals…","Weighing attendance & completion…","Consulting the risk model…","Composing recommendations…"];
+
+$("runBtn").onclick=async()=>{
+  const f={
+    grade:+$("fGrade").value, subject:+$("fSubject").value,
+    attendance:+$("fAtt").value, completion:+$("fComp").value,
+    midterm:+$("fExam").value, stress:+document.querySelector('input[name=st]:checked').value
+  };
+  $("placeholder").style.display="none"; $("result").classList.remove("show");
+  $("loading").classList.add("show"); $("runBtn").disabled=true;
+  let i=0; const msg=setInterval(()=>{$("loadMsg").textContent=LOAD_MSGS[i++%LOAD_MSGS.length];},650);
+
+  const tier=await predict(f);
+  setTimeout(()=>{
+    clearInterval(msg); $("loading").classList.remove("show"); $("runBtn").disabled=false;
+    showResult(tier,f);
+  },1700);
+};
+function showResult(tier,f){
+  const info=TIER_INFO[tier];
+  $("resHero").style.background=info.grad;
+  $("resTier").textContent=TIERS[tier];
+  $("resDesc").textContent=info.desc;
+  $("resRecs").innerHTML=info.recs.map(r=>`<li><span class="tick">✓</span><span>${r}</span></li>`).join("");
+  $("result").classList.add("show");
+  lastResult={tier,f,name:"Evaluated Student"};
+}
+$("exportBtn").onclick=()=>{ if(lastResult) makePDF(lastResult.name,lastResult.f,lastResult.tier); };
+
+/* ============================================================
+   PDF EXPORT (jsPDF)
+   ============================================================ */
+function exportStudent(i){const s=students[i];makePDF(s.name,s,s.tier);}
+function makePDF(name,f,tier){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF();
+  const info=TIER_INFO[tier];
+  // header band
+  doc.setFillColor(95,208,168); doc.rect(0,0,210,32,"F");
+  doc.setTextColor(255); doc.setFontSize(18); doc.setFont(undefined,"bold");
+  doc.text("Early Warning — Student Risk Report",14,16);
+  doc.setFontSize(10); doc.setFont(undefined,"normal");
+  doc.text("EarlyBird EWS · Generated "+new Date().toLocaleDateString(),14,25);
+  // body
+  doc.setTextColor(43,58,74); let y=46;
+  doc.setFontSize(13); doc.setFont(undefined,"bold"); doc.text("Student: "+name,14,y); y+=10;
+  doc.setFontSize(11); doc.setFont(undefined,"normal");
+  const rows=[["Grade Level","Grade "+f.grade],["Subject",SUBJECTS[f.subject]],
+    ["Attendance",f.attendance+"%"],["Assignment Completion",f.completion+"%"],
+    ["Mid-Term Exam Score",f.midterm],["Observed Stress",STRESS[f.stress]]];
+  rows.forEach(r=>{doc.setFont(undefined,"bold");doc.text(r[0]+":",14,y);
+    doc.setFont(undefined,"normal");doc.text(String(r[1]),80,y);y+=8;});
+  y+=4; doc.setFillColor(240,246,250); doc.roundedRect(14,y,182,16,3,3,"F");
+  doc.setFont(undefined,"bold"); doc.setFontSize(13);
+  doc.text("Predicted Risk Tier:  "+TIERS[tier],20,y+10); y+=28;
+  doc.setFontSize(12); doc.text("Recommended Actions",14,y); y+=8;
+  doc.setFontSize(10.5); doc.setFont(undefined,"normal");
+  info.recs.forEach(r=>{const lines=doc.splitTextToSize("•  "+r,178);doc.text(lines,16,y);y+=lines.length*6+1;});
+  doc.save(name.replace(/\s+/g,"_")+"_risk_report.pdf");
+}
+
+/* ============================================================
+   BULK CSV UPLOAD
+   ============================================================ */
+const drop=$("drop"),file=$("file");
+drop.onclick=()=>file.click();
+file.onchange=e=>{ if(e.target.files[0]) readCSV(e.target.files[0]); };
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)readCSV(f);});
+$("sampleBtn").onclick=()=>{ if(!students.length)genStudents();
+  renderBulk(students.slice(0,8).map(s=>({name:s.name,grade:s.grade,subject:s.subject,
+    attendance:s.attendance,completion:s.completion,midterm:s.midterm,stress:s.stress,tier:s.tier}))); };
+
+function readCSV(f){
+  const r=new FileReader();
+  r.onload=()=>{ try{ renderBulk(parseCSV(r.result)); }
+    catch(err){ alert("Could not parse CSV: "+err.message); } };
+  r.readAsText(f);
+}
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  const head=lines[0].split(",").map(h=>h.trim().toLowerCase());
+  const idx=k=>head.indexOf(k);
+  const subjMap={"math":0,"language arts":1,"science":2};
+  return lines.slice(1).filter(l=>l.trim()).map((l,n)=>{
+    const c=l.split(",").map(x=>x.trim());
+    const rawSub=c[idx("subject")];
+    const subject=isNaN(rawSub)?(subjMap[(rawSub||"").toLowerCase()] ?? 0):+rawSub;
+    const f={name:idx("name")>=0?c[idx("name")]:"Student "+(n+1),
+      grade:+c[idx("grade_level")]||1, subject,
+      attendance:+c[idx("attendance_percentage")]||0,
+      completion:+c[idx("assignment_completion_rate")]||0,
+      midterm:+c[idx("midterm_exam_score")]||0,
+      stress:+c[idx("teacher_observed_stress")]||0};
+    f.tier=localPredict(f); return f;
+  });
+}
+function renderBulk(rows){
+  $("bulkPanel").style.display="block";
+  const risk=rows.filter(r=>r.tier>=2).length;
+  $("bulkSum").textContent=`${rows.length} students processed · ${risk} flagged for attention`;
+  $("bulkRows").innerHTML=rows.map(r=>`
+    <tr><td><b>${r.name}</b></td><td>Grade ${r.grade}</td><td>${SUBJECTS[r.subject]||"—"}</td>
+    <td>${r.attendance}%</td><td>${r.midterm}</td>
+    <td><span class="badge ${BADGE[r.tier]}">${TIERS[r.tier]}</span></td></tr>`).join("");
+  $("bulkPanel").scrollIntoView({behavior:"smooth"});
+}
+</script>

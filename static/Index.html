@@ -1,0 +1,821 @@
+<!--
+  ============================================================
+  EduGuard EWS — Multi-Subject Homeroom Monitor (כיתה ג')
+  Single-file SPA · HTML5 + CSS3 + Vanilla JS
+  ------------------------------------------------------------
+  • 18-student synthetic homeroom, 3 subjects each
+  • Filter highlights matching subjects (gap matrix)
+  • Deep-link roster -> Predictor (auto-fill + auto-run)
+  • Level-coupled practice generator
+  • Comprehensive multi-subject diagnostic PDF
+  • Strict Pedagogical Hebrew Guard (teacher + student gender)
+  BACKEND switches: /predict · /draft_message · /generate_materials
+  ============================================================
+-->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --mint:#5fd0a8; --mint-soft:#e2f8ef; --blue:#6cb6f5; --blue-soft:#e3f0fd;
+    --ink:#2b3a4a; --ink-soft:#6b7d8f; --line:#e7eef4; --card:#fff;
+    --exc-bg:#cdf2dd; --exc-tx:#1f7a4d; --good-bg:#d6e9fb; --good-tx:#1f5f9e;
+    --avg-bg:#fcefc7; --avg-tx:#8f6d12; --poor-bg:#fbd9d9; --poor-tx:#b04545;
+    --shadow:0 10px 30px -12px rgba(43,58,74,.18); --radius:18px;
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);color:var(--ink);background:
+    radial-gradient(1200px 600px at 10% -10%,var(--mint-soft),transparent 60%),
+    radial-gradient(1000px 600px at 110% 10%,var(--blue-soft),transparent 55%),#f6fafc;min-height:100vh;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;border:none}
+  input,select,textarea{font-family:inherit}
+
+  /* LOGIN */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .login-card{width:100%;max-width:430px;background:rgba(255,255,255,.85);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.6);border-radius:26px;box-shadow:var(--shadow);padding:38px 34px;animation:rise .6s cubic-bezier(.2,.8,.2,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  .logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--mint),var(--blue));box-shadow:0 8px 18px -8px var(--blue)}
+  .brand h1{font-size:17px;line-height:1.2}.brand p{font-size:12px;color:var(--ink-soft)}
+  .field{margin-top:16px}.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+  .field input{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:13px;font-size:14.5px;background:#fff;transition:.18s}
+  .field input:focus{outline:none;border-color:var(--mint);box-shadow:0 0 0 4px var(--mint-soft)}
+  .field input.invalid{border-color:#e89595;box-shadow:0 0 0 4px #fbe3e3;animation:shake .35s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .err{font-size:12px;color:var(--poor-tx);margin-top:5px;height:0;opacity:0;transition:.2s}.err.show{height:auto;opacity:1}
+  .btn{width:100%;margin-top:24px;padding:14px;border-radius:13px;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--mint),var(--blue));box-shadow:0 12px 24px -12px var(--blue);transition:.18s}
+  .btn:hover{transform:translateY(-1px);filter:brightness(1.03)}.hint{margin-top:16px;font-size:12px;color:var(--ink-soft);text-align:center}
+
+  /* SHELL */
+  #app{display:none;min-height:100vh}.shell{display:flex;min-height:100vh}
+  .sidebar{width:248px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+  .side-brand{display:flex;align-items:center;gap:11px;padding:6px 8px 18px}
+  .side-brand .logo{width:38px;height:38px;border-radius:11px}.side-brand b{font-size:14.5px}.side-brand span{font-size:11px;color:var(--ink-soft);display:block}
+  .nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .nav button{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:12px;background:transparent;color:var(--ink-soft);font-size:14px;font-weight:600;text-align:left;transition:.15s}
+  .nav button:hover{background:#f4f8fb;color:var(--ink)}.nav button.active{background:var(--mint-soft);color:var(--exc-tx)}
+  .nav svg{width:19px;height:19px;flex-shrink:0}.nav .emoji{width:19px;flex-shrink:0;text-align:center;font-size:15px}
+  .side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+  .side-foot button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 13px;border-radius:12px;background:transparent;color:var(--ink-soft);font-size:14px;font-weight:600}
+  .side-foot button:hover{background:#fdf0f0;color:var(--poor-tx)}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 30px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.7);backdrop-filter:blur(8px);position:sticky;top:0;z-index:20}
+  .topbar h2{font-size:18px}.top-right{display:flex;align-items:center;gap:14px}
+  .pill-grade{font-size:12px;font-weight:800;color:var(--good-tx);background:var(--blue-soft);padding:6px 12px;border-radius:999px}
+  .bell{position:relative;width:42px;height:42px;border-radius:12px;background:#f4f8fb;display:grid;place-items:center}
+  .bell:hover{background:#eaf1f6}.bell .dot{position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;background:#f06464;border:2px solid #fff}
+  .avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--mint),var(--blue));color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+  .content{padding:30px;max-width:1180px;width:100%}
+  .page{display:none;animation:fade .4s}.page.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* DASHBOARD */
+  .banner{background:linear-gradient(120deg,var(--mint-soft),var(--blue-soft));border-radius:var(--radius);padding:26px 30px;margin-bottom:24px;border:1px solid #fff}
+  .banner h3{font-size:23px;margin-bottom:5px}.banner p{color:var(--ink-soft);font-size:14px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:26px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+  .stat .ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;margin-bottom:14px}
+  .stat .lbl{font-size:13px;color:var(--ink-soft);font-weight:600}.stat .val{font-size:31px;font-weight:800;margin-top:3px}.stat .sub{font-size:12px;color:var(--ink-soft);margin-top:4px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--line)}
+  .panel-head h4{font-size:16px}.panel-head .sm{font-size:12.5px;color:var(--ink-soft)}
+  .filter-bar{padding:13px 24px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .filter-bar .lab{font-size:12.5px;font-weight:700;color:var(--ink-soft)}
+  .fbtn{padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:700;background:#f4f8fb;color:var(--ink-soft);border:1.5px solid transparent;transition:.15s}
+  .fbtn:hover{background:#e9f1f6}.fbtn.active{background:var(--mint-soft);color:var(--exc-tx);border-color:#bfe8d6}
+  .add-group{margin-left:auto;background:linear-gradient(135deg,var(--mint),var(--blue));color:#fff;padding:8px 14px;border-radius:11px;font-size:12.5px;font-weight:800;box-shadow:0 10px 20px -12px var(--blue)}
+  .add-group:hover{filter:brightness(1.05);transform:translateY(-1px)}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft);padding:13px 22px;border-bottom:1px solid var(--line);font-weight:700}
+  td{padding:12px 22px;font-size:14px;border-bottom:1px solid #f1f6f9;vertical-align:middle}
+  tbody tr:hover{background:#fafcfe}tbody tr:last-child td{border-bottom:none}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.7}
+  .b-exc{background:var(--exc-bg);color:var(--exc-tx)}.b-good{background:var(--good-bg);color:var(--good-tx)}
+  .b-avg{background:var(--avg-bg);color:var(--avg-tx)}.b-poor{background:var(--poor-bg);color:var(--poor-tx)}
+  .lvl-btn{cursor:pointer;transition:.18s;border:1.5px solid transparent}
+  .lvl-btn:hover{transform:translateY(-1px);filter:brightness(.99)}
+  .lvl-match{outline:2.5px solid var(--mint);outline-offset:1px;transform:scale(1.04);box-shadow:0 8px 16px -10px var(--mint)}
+  .lvl-dim{opacity:.3;filter:grayscale(.55)}
+  .run-link{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:10px;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--mint),var(--blue));box-shadow:0 10px 20px -12px var(--blue)}
+  .run-link:hover{filter:brightness(1.05);transform:translateY(-1px)}
+  .mini{padding:7px 12px;border-radius:9px;font-size:12.5px;font-weight:700;background:#f4f8fb;color:var(--ink)}.mini:hover{background:#e9f1f6}
+  .tmpl-btn{background:var(--blue-soft);color:var(--good-tx)}.tmpl-btn:hover{background:#d3e6fb}
+  .table-wrap{max-height:520px;overflow:auto}
+
+  /* FORMS */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .fcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px;box-shadow:var(--shadow)}
+  .fc-title{font-size:16px;margin-bottom:4px}.fc-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px}
+  .ff{margin-bottom:16px}.ff label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}.ff label .v{float:right;color:var(--mint);font-weight:800}
+  .ff select,.ff input[type=number],.ff input[type=text]{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:11px;font-size:14px;background:#fff;transition:.15s}
+  .ff select:focus,.ff input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-soft)}
+  textarea{width:100%;min-height:128px;padding:12px 13px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;line-height:1.55;resize:vertical;transition:.15s}
+  textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-soft)}
+  input[type=range]{width:100%;accent-color:var(--mint);height:6px}
+  .radios{display:flex;gap:10px}
+  .radios label{flex:1;border:1.5px solid var(--line);border-radius:11px;padding:11px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+  .radios input{display:none}.radios label.sel{border-color:var(--mint);background:var(--mint-soft);color:var(--exc-tx)}
+  .run{margin-top:6px;width:100%;padding:15px;border-radius:13px;font-size:15.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--mint),var(--blue));box-shadow:0 14px 26px -12px var(--blue)}
+  .run:hover{filter:brightness(1.04);transform:translateY(-1px)}.run:disabled{opacity:.6;cursor:wait;transform:none}
+  .row{display:flex;gap:12px}
+  .loading{display:none;flex-direction:column;align-items:center;gap:16px;padding:40px}.loading.show{display:flex}
+  .ring{width:54px;height:54px;border-radius:50%;border:5px solid var(--mint-soft);border-top-color:var(--mint);animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}.loading p{font-size:14px;color:var(--ink-soft);font-weight:600}
+
+  /* RESULT */
+  .result{display:none}.result.show{display:block;animation:fade .45s}
+  .res-hero{border-radius:var(--radius);padding:24px 26px;color:#fff;margin-bottom:16px}
+  .res-hero h3{font-size:13.5px;opacity:.9;font-weight:600}.res-hero .tier{font-size:30px;font-weight:900;margin:2px 0 6px}.res-hero p{font-size:13px;opacity:.92}
+  .recs{list-style:none;margin-top:6px}.recs li{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid #f1f6f9;font-size:13.5px}
+  .recs li:last-child{border:none}.recs .tick{width:21px;height:21px;border-radius:7px;flex-shrink:0;display:grid;place-items:center;background:var(--mint-soft);color:var(--exc-tx);font-weight:900;font-size:12px}
+  .alert-box{margin:4px 0 16px;border:1.5px solid #f3c0c0;background:linear-gradient(180deg,#fdeeee,#fde6e6);border-radius:16px;padding:17px 19px;animation:fade .4s}
+  .alert-box.rtl{direction:rtl;text-align:right}
+  .alert-box h5{font-size:14.5px;color:var(--poor-tx);margin-bottom:5px}.alert-box p{font-size:13px;color:#7a4a4a;margin-bottom:13px;line-height:1.55}
+  .ab-btn{padding:11px 16px;border-radius:11px;font-size:13.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#f08a8a,#e76d92);box-shadow:0 12px 22px -12px #e76d92}
+  .ab-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
+
+  /* INTERVENTION ENGINE */
+  .iv-section{margin:2px 0 16px;padding:18px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+  .iv-title{font-size:14.5px;font-weight:800}
+  .iv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+  .iv-btn{padding:14px 10px;border-radius:12px;font-size:12.5px;font-weight:800;border:1.5px solid var(--line);background:#fff;color:var(--ink);transition:.15s;text-align:center;line-height:1.35}
+  .iv-btn:hover{border-color:var(--mint);background:var(--mint-soft);color:var(--exc-tx)}
+  .iv-btn.active{border-color:var(--mint);background:var(--mint-soft);color:var(--exc-tx);box-shadow:0 8px 16px -10px var(--mint)}
+
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
+  .feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px}
+  .col{background:#fff;border:1px solid var(--line);border-top:3px solid var(--mint);border-radius:16px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;animation:fade .5s}
+  .col.rtl{direction:rtl;text-align:right}.col-head{margin-bottom:10px}.col-head b{font-size:14px}.col .tag{font-size:11px;font-weight:700;color:var(--ink-soft);margin-top:3px}
+  .col-body{font-size:13px;line-height:1.6;flex:1}.col-body p{margin-bottom:8px}
+  .copy-btn{margin-top:12px;padding:9px;border-radius:10px;font-size:12.5px;font-weight:700;background:#f4f8fb;color:var(--ink)}.copy-btn:hover{background:#e9f1f6}
+  .feat-grid .featured{grid-column:1 / -1;border:2px solid var(--mint);background:#f4fdf8;box-shadow:0 14px 28px -16px var(--mint)}
+  .feat-grid .muted{opacity:.72}
+  .feat-tag{display:inline-block;background:linear-gradient(135deg,var(--mint),var(--blue));color:#fff;font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;margin-bottom:9px}
+  .out-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;white-space:pre-wrap;line-height:1.8;font-size:14px;animation:fade .4s}
+  .out-card.rtl{direction:rtl;text-align:right}
+  .safeguard{margin-top:14px;display:flex;gap:9px;align-items:flex-start;font-size:11.5px;color:var(--ink-soft);background:#f4f8fb;border:1px solid var(--line);border-radius:12px;padding:11px 13px;line-height:1.55}
+  .safeguard.he{direction:rtl;text-align:right;font-weight:600}.safeguard b{color:var(--ink)}
+
+  .drop{border:2.5px dashed #c7d8e6;border-radius:var(--radius);background:#fff;padding:46px 24px;text-align:center;transition:.18s;cursor:pointer}
+  .drop:hover,.drop.drag{border-color:var(--mint);background:var(--mint-soft)}
+  .drop .di{width:60px;height:60px;border-radius:16px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;margin:0 auto 14px}
+  .drop h4{font-size:16px;margin-bottom:5px}.drop p{font-size:13px;color:var(--ink-soft)}
+  .alerts{position:absolute;top:64px;right:30px;width:350px;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 50px -16px rgba(43,58,74,.3);z-index:40;display:none;overflow:hidden}
+  .alerts.show{display:block;animation:fade .25s}.alerts .ah{padding:15px 18px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px}
+  .alerts .ai{display:flex;gap:11px;padding:13px 18px;border-bottom:1px solid #f1f6f9}.alerts .ai:last-child{border:none}
+  .alerts .adot{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;background:var(--poor-bg);color:var(--poor-tx)}
+  .alerts .at{font-size:13.5px;font-weight:700}.alerts .as{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .placeholder{text-align:center;padding:42px 10px;color:var(--ink-soft)}
+  .placeholder .pic{width:60px;height:60px;border-radius:16px;background:var(--mint-soft);color:var(--exc-tx);display:grid;place-items:center;margin:0 auto 12px}
+  @media(max-width:860px){.sidebar{display:none}.cards{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.cols{grid-template-columns:1fr}.feat-grid{grid-template-columns:1fr}.iv-grid{grid-template-columns:1fr}.content{padding:18px}.topbar{padding:14px 18px}.alerts{right:14px;left:14px;width:auto}}
+</style>
+
+<!-- LOGIN -->
+<section id="login">
+  <div class="login-card">
+    <div class="brand"><div class="logo"><svg viewBox="0 0 24 24" width="24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><div><h1>EduGuard EWS</h1><p>Homeroom Monitor · כיתה ג'</p></div></div>
+    <div class="field"><label>Username / Email</label><input id="lu" type="text" placeholder="teacher@school.edu" autocomplete="username"/><div class="err" id="eu">Please enter your email or username.</div></div>
+    <div class="field"><label>Password</label><input id="lp" type="password" placeholder="••••••••" autocomplete="current-password"/><div class="err" id="ep">Password must be at least 4 characters.</div></div>
+    <div class="field"><label>Teacher voice — Hebrew grammar / קול המחנכ/ת</label>
+      <div class="radios" id="lgender" style="margin-top:2px"><label class="sel"><input type="radio" name="tg" value="f" checked><span>מחנכת · נקבה</span></label><label><input type="radio" name="tg" value="m"><span>מחנך · זכר</span></label></div></div>
+    <button class="btn" id="loginBtn">Sign in to Dashboard</button>
+    <p class="hint">Demo: type any email &amp; a 4+ char password to enter.</p>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app">
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="side-brand"><div class="logo"><svg viewBox="0 0 24 24" width="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><div><b>EduGuard EWS</b><span>Homeroom Portal</span></div></div>
+      <nav class="nav" id="nav">
+        <button data-p="dash" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</button>
+        <button data-p="predict"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.4-1.5 3.2C13.8 10 13 11 13 12.5h-2C11 11 10.2 10 9.5 9.2 8.8 8.4 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 18h6M10 21h4"/></svg>AI Student Predictor</button>
+        <button data-p="bulk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Bulk CSV Upload</button>
+        <button data-p="materials"><span class="emoji">📑</span> Differentiated Materials</button>
+        <button data-p="parent"><span class="emoji">💬</span> Parent Communicator</button>
+      </nav>
+      <div class="side-foot"><button id="logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Sign out</button></div>
+    </aside>
+
+    <div class="main">
+      <div class="topbar"><h2 id="ptitle">Dashboard</h2><div class="top-right"><span class="pill-grade">כיתה ג' · Grade 3</span><div class="bell" id="bell"><svg viewBox="0 0 24 24" width="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="dot"></span></div><div class="avatar" id="avatar">S</div></div></div>
+      <div class="alerts" id="alerts"><div class="ah">⚠️ Proactive Alerts — this week</div><div id="alertList"></div></div>
+
+      <div class="content">
+        <!-- DASHBOARD -->
+        <section class="page active" id="dash">
+          <div class="banner"><h3 id="welcome">Good morning 👋</h3><p>Multi-subject snapshot for כיתה ג'. <b id="hiCount">0</b> students may need support in at least one subject.</p></div>
+          <div class="cards">
+            <div class="stat"><div class="ico" style="background:var(--mint-soft);color:var(--exc-tx)"><svg viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="lbl">Total Monitored Students</div><div class="val" id="sTotal">0</div><div class="sub">כיתה ג' · one homeroom class</div></div>
+            <div class="stat"><div class="ico" style="background:var(--poor-bg);color:var(--poor-tx)"><svg viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div class="lbl">Students Needing Support</div><div class="val" id="sRisk">0</div><div class="sub">Average / Support in any subject</div></div>
+            <div class="stat"><div class="ico" style="background:var(--blue-soft);color:var(--good-tx)"><svg viewBox="0 0 24 24" width="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div><div class="lbl">Average Class Attendance</div><div class="val" id="sAtt">0%</div><div class="sub">Across all subjects</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><h4>Multi-Subject Roster · רשימת התלמידים</h4><div class="sm" id="rosterHint">Expected Level · רמת יעד — tap any badge to run inference</div></div></div>
+            <div class="filter-bar">
+              <span class="lab">Filter · רמת יעד:</span>
+              <button class="fbtn active" data-l="all">Show All</button>
+              <button class="fbtn" data-l="0">Excellent</button>
+              <button class="fbtn" data-l="1">Good</button>
+              <button class="fbtn" data-l="2">Average</button>
+              <button class="fbtn" data-l="3">Support</button>
+              <button class="add-group" id="addGroupBtn" style="display:none">+ הוסף תלמיד לקבוצה זו</button>
+            </div>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Student · תלמיד/ה</th><th>Math · מתמטיקה</th><th>Language Arts · שפה</th><th>Science · מדעים</th><th>Actions</th></tr></thead>
+              <tbody id="roster"></tbody>
+            </table></div>
+          </div>
+        </section>
+
+        <!-- PREDICT -->
+        <section class="page" id="predict">
+          <div class="form-grid">
+            <div class="fcard">
+              <div class="fc-title">Expected-Level Assessment · הערכת רמת יעד</div>
+              <div class="fc-sub">Class is fixed to כיתה ג'. Deep-link from the roster auto-fills this form per subject.</div>
+              <div class="ff"><label>Student Name · שם התלמיד/ה <span style="color:var(--ink-soft);font-weight:500">(optional)</span></label><input type="text" id="fName" dir="auto" placeholder="לדוגמה: מיה / Mia"/></div>
+              <div class="ff"><label>מין התלמיד/ה · Student gender <span style="color:var(--ink-soft);font-weight:500">(for Hebrew)</span></label>
+                <div class="radios" id="fSG"><label class="sel"><input type="radio" name="fsg" value="f" checked><span>בת</span></label><label><input type="radio" name="fsg" value="m"><span>בן</span></label></div></div>
+              <div class="ff"><label>Subject · מקצוע</label><select id="fSubject"><option value="0">Math · מתמטיקה</option><option value="1">Language Arts · שפה ואוריינות</option><option value="2">Science · מדעים</option></select></div>
+              <div class="ff"><label>Attendance Percentage <span class="v" id="vAtt">90%</span></label><input type="range" id="fAtt" min="0" max="100" value="90"/></div>
+              <div class="ff"><label>Assignment Completion Rate <span class="v" id="vComp">85%</span></label><input type="range" id="fComp" min="0" max="100" value="85"/></div>
+              <div class="ff"><label>Mid-Term Exam Score</label><input type="number" id="fExam" min="0" max="100" value="78"/></div>
+              <div class="ff"><label>Teacher-Observed Stress Level</label>
+                <div class="radios" id="fStress"><label class="sel"><input type="radio" name="st" value="0" checked><span>Low</span></label><label><input type="radio" name="st" value="1"><span>Medium</span></label><label><input type="radio" name="st" value="2"><span>High</span></label></div></div>
+              <button class="run" id="runBtn">⚡ Run Expected-Level Assessment</button>
+            </div>
+            <div class="fcard">
+              <div class="loading" id="loading"><div class="ring"></div><p id="loadMsg">Analyzing student signals…</p></div>
+              <div class="placeholder" id="placeholder"><div class="pic"><svg viewBox="0 0 24 24" width="30" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.4-1.5 3.2C13.8 10 13 11 13 12.5h-2C11 11 10.2 10 9.5 9.2 8.8 8.4 8 7.5 8 6a4 4 0 0 1 4-4z"/><path d="M9 18h6M10 21h4"/></svg></div><h4 style="font-size:16px;color:var(--ink)">Awaiting assessment</h4><p style="font-size:13.5px;margin-top:5px">Run from here or deep-link a student from the roster to see the Expected Level and a level-tuned Intervention Engine.</p></div>
+              <div class="result" id="result">
+                <div class="res-hero" id="resHero"><h3>Expected Level · רמת יעד</h3><div class="tier" id="resTier">—</div><p id="resDesc"></p></div>
+                <div id="resAlert"></div>
+                <div class="iv-section">
+                  <div class="iv-title">מנוע התערבות פדגוגי · Intervention Engine</div>
+                  <div class="ff" style="margin:12px 0 2px"><label>באיזה נושא ספציפי התלמיד/ה מתקשה? · Specific Topic of Difficulty</label><input type="text" id="ivTopic" dir="auto" placeholder="לדוגמה: שברים, הבנת הנקרא, חיבור בעמודה"/></div>
+                  <div class="iv-grid">
+                    <button class="iv-btn" id="ivA">💬 מכתב אמפתי<br>להורים</button>
+                    <button class="iv-btn" id="ivB">📑 מחולל תרגול<br>מותאם לרמה</button>
+                    <button class="iv-btn" id="ivC">✨ מכתב מוטיבציה<br>אישי לתלמיד/ה</button>
+                  </div>
+                  <div id="ivOut" style="margin-top:14px"></div>
+                  <div class="safeguard he" id="ivBadge" style="display:none">🔒 <span><b>מנגנון סינון פדגוגי פעיל:</b> הטקסט מוגן מפני כשלים לשוניים או שימוש בשפה ארכאית.</span></div>
+                </div>
+                <h4 style="font-size:14px;margin:6px 0 0">Quick recommendations · המלצות מהירות</h4>
+                <ul class="recs" id="resRecs"></ul>
+                <button class="mini" id="exportBtn" style="margin-top:12px">📄 Export full multi-subject PDF</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BULK -->
+        <section class="page" id="bulk">
+          <div class="fcard" style="margin-bottom:22px">
+            <div class="fc-title">Bulk CSV Upload</div>
+            <div class="fc-sub">Whole class is כיתה ג' — no grade column needed. Required columns:
+              <code>subject, attendance_percentage, assignment_completion_rate, midterm_exam_score, teacher_observed_stress</code> (optional <code>name</code>).</div>
+            <div class="drop" id="drop"><div class="di"><svg viewBox="0 0 24 24" width="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div><h4>Drag &amp; drop your CSV here</h4><p>or click to browse · .csv files only</p><input type="file" id="file" accept=".csv" hidden/></div>
+            <div class="row" style="margin-top:14px;flex-wrap:wrap"><button class="mini" id="sampleBtn">Load this class (all subjects)</button><button class="mini tmpl-btn" id="tmplBtn">📥 הורד תבנית קובץ CSV ריקה</button></div>
+          </div>
+          <div class="panel" id="bulkPanel" style="display:none">
+            <div class="panel-head"><div><h4>Batch Results</h4><div class="sm" id="bulkSum"></div></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Student</th><th>Subject</th><th>Attend.</th><th>Exam</th><th>Expected Level · רמת יעד</th></tr></thead><tbody id="bulkRows"></tbody></table></div>
+          </div>
+        </section>
+
+        <!-- MATERIALS -->
+        <section class="page" id="materials">
+          <div class="fcard" style="margin-bottom:22px">
+            <div class="fc-title">📑 Differentiated Lesson &amp; Materials Generator</div>
+            <div class="fc-sub">General tool — shows all three levels equally. (The Predictor's engine auto-features the student's level.)</div>
+            <div class="ff"><label>נושא השיעור / טקסט מתוך ספר הלימוד · Lesson topic or textbook text</label><textarea id="mText" dir="auto" placeholder="לדוגמה: מחזור המים בטבע — או הדביקו פסקה מתוך ספר הלימוד"></textarea></div>
+            <div class="ff"><label>Subject · מקצוע</label><select id="mSubject"><option value="0">מתמטיקה · Math</option><option value="1">שפה ואוריינות · Language Arts</option><option value="2" selected>מדעים · Science</option></select></div>
+            <button class="run" id="mGen">✨ AI Simplify &amp; Differentiate</button>
+            <div class="safeguard he">🔒 <span><b>מנגנון סינון פדגוגי פעיל:</b> הטקסט מוגן מפני כשלים לשוניים או שימוש בשפה ארכאית.</span></div>
+          </div>
+          <div class="loading" id="mLoading"><div class="ring"></div><p>מנסח שלוש רמות קריאה…</p></div>
+          <div class="cols" id="mOut" style="display:none"></div>
+          <div class="safeguard he" id="mBadge" style="display:none">🔒 <span><b>מנגנון סינון פדגוגי פעיל:</b> הטקסט מוגן מפני כשלים לשוניים או שימוש בשפה ארכאית.</span></div>
+        </section>
+
+        <!-- PARENT -->
+        <section class="page" id="parent">
+          <div class="form-grid">
+            <div class="fcard">
+              <div class="fc-title">💬 Empathetic Parent Communicator</div>
+              <div class="fc-sub">Warm, non-accusatory drafts with full Hebrew gender alignment.</div>
+              <div class="ff"><label>שם ההורה · Parent Name <span style="color:var(--ink-soft);font-weight:500">(optional)</span></label><input type="text" id="pParent" dir="auto" placeholder="לדוגמה: גב' כהן"/></div>
+              <div class="ff"><label>שם התלמיד/ה · Student Name</label><input type="text" id="pName" dir="auto" placeholder="לדוגמה: מיה / Mia"/></div>
+              <div class="ff"><label>Expected Level · רמת יעד</label><select id="pTier"><option>Excellent</option><option>Good</option><option selected>Average</option><option>Poor</option></select></div>
+              <div class="ff"><label>Primary Concern · נושא עיקרי</label><select id="pConcern"><option value="Academic Drop">Academic Drop · ירידה בהישגים</option><option value="Attendance/Absences">Attendance / Absences · היעדרויות</option><option value="Emotional Stress">Emotional Stress · מתח רגשי</option><option value="General Update">General Update · עדכון כללי</option></select></div>
+              <div class="ff"><label>שפת המכתב · Recipient Language</label><div class="radios" id="pLang"><label class="sel"><input type="radio" name="plang" value="he" checked><span>עברית</span></label><label><input type="radio" name="plang" value="en"><span>English</span></label></div></div>
+              <div class="row"><div class="ff" style="flex:1"><label>מין המורה</label><div class="radios" id="pTG"><label class="sel"><input type="radio" name="ptg" value="f" checked><span>נקבה</span></label><label><input type="radio" name="ptg" value="m"><span>זכר</span></label></div></div>
+                <div class="ff" style="flex:1"><label>מין התלמיד/ה</label><div class="radios" id="pSG"><label class="sel"><input type="radio" name="psg" value="f" checked><span>בת</span></label><label><input type="radio" name="psg" value="m"><span>בן</span></label></div></div></div>
+              <button class="run" id="pGen">📝 Generate Professional Draft</button>
+              <div class="safeguard he">🔒 <span><b>מנגנון סינון פדגוגי פעיל:</b> הטקסט מוגן מפני כשלים לשוניים או שימוש בשפה ארכאית.</span></div>
+            </div>
+            <div class="fcard">
+              <div class="fc-title">Message Draft · טיוטת מכתב</div><div class="fc-sub">Ready to paste into WhatsApp or Email.</div>
+              <div class="placeholder" id="pPlaceholder"><div class="pic"><svg viewBox="0 0 24 24" width="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4L3 21l1.1-3.3A8.4 8.4 0 1 1 21 11.5z"/></svg></div><h4 style="font-size:15.5px;color:var(--ink)">No draft yet</h4><p style="font-size:13.5px;margin-top:5px">Fill in the details and generate a warm, parent-ready message.</p></div>
+              <div id="pOut" class="out-card" style="display:none"></div>
+              <button class="mini" id="pCopy" style="display:none;margin-top:13px">📋 העתק טקסט · Copy</button>
+              <div class="safeguard he" id="pBadge" style="display:none">🔒 <span><b>מנגנון סינון פדגוגי פעיל:</b> הטקסט מוגן מפני כשלים לשוניים או שימוש בשפה ארכאית.</span></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const USE_BACKEND = true;
+const API_BASE = "http://localhost:5000";
+const CLASS_GRADE = 3, CLASS_GRADE_HE = "ג'";
+
+const TIERS    = ["Excellent","Good","Average","Poor"];
+const TIER_EN  = ["Excellent","Good","Average","Support"]; // report-friendly label for tier 3
+const SUBJECTS = ["Math","Language Arts","Science"];
+const STRESS   = ["Low","Medium","High"];
+const BADGE    = ["b-exc","b-good","b-avg","b-poor"];
+const HE_TIER  = ["רמת הצטיינות","רמה טובה","רמה ממוצעת","רמת תמיכה"];
+const HE_SUBJECTS = ["מתמטיקה","שפה ואוריינות","מדעים"];
+
+const TIER_INFO = {
+  0:{grad:"linear-gradient(135deg,#5fd0a8,#3fb389)",desc:"Thriving — focus on enrichment and sustaining motivation.",
+     recs:["Offer advanced, open-ended challenge tasks.","Invite peer-mentoring of classmates.","Recognize achievement to reinforce motivation.","Share positive progress notes with parents."]},
+  1:{grad:"linear-gradient(135deg,#6cb6f5,#4a93de)",desc:"Solid, with room to grow — light, consistent touchpoints.",
+     recs:["Set one stretch goal per unit.","Brief weekly check-ins to catch slips early.","Pair with a top-tier peer for collaboration.","Give feedback that names specific strengths."]},
+  2:{grad:"linear-gradient(135deg,#f0c84a,#d8a72a)",desc:"Early signs — targeted support now prevents decline.",
+     recs:["Small-group re-teaching on weak skills.","Introduce a simple assignment-tracking routine.","Align home and school support with the family.","Monitor attendance and follow up on absences."]},
+  3:{grad:"linear-gradient(135deg,#ef8181,#d96363)",desc:"Needs support — coordinate a caring intervention plan.",
+     recs:["Provide 1-on-1 instruction and a personalized learning plan.","Refer to the school counselor for wellbeing if needed.","Hold a family meeting to build a shared support plan.","Set short daily goals with frequent encouraging feedback."]}
+};
+
+/* ===================== helpers ===================== */
+const $ = id => document.getElementById(id);
+const cap = s => { s=String(s); return s.charAt(0).toUpperCase()+s.slice(1); };
+const escapeHtml = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let teacherName="Sarah", teacherGender="f", studentGender="f";
+function setRadio(group,name,val){document.querySelectorAll(`#${group} label`).forEach(x=>x.classList.toggle("sel",x.querySelector("input").value===val));const inp=document.querySelector(`#${group} input[value="${val}"]`);if(inp)inp.checked=true;}
+
+/* ===================== HEBREW GENDER ENGINE ===================== */
+function heForms(tg,sg){return{
+  believe: tg==='f'?"מאמינה":"מאמין", think: tg==='f'?"חושבת":"חושב", glad: tg==='f'?"שמחה":"שמח",
+  standing: tg==='f'?"עומדת":"עומד", emphasize: tg==='f'?"מדגישה":"מדגיש",
+  pron: sg==='f'?"היא":"הוא", pupil: sg==='f'?"תלמידה":"תלמיד", pleasant: sg==='f'?"נעימה":"נעים",
+  capable: sg==='f'?"בעלת יכולת":"בעל יכולת", succeeding: sg==='f'?"מצליחה":"מצליח", continuing: sg==='f'?"ממשיכה":"ממשיך",
+  looks: sg==='f'?"נראית":"נראה", tense: sg==='f'?"מתוחה":"מתוח", burdened: sg==='f'?"עמוסה":"עמוס",
+  wellbeing: sg==='f'?"שלומה":"שלומו", inHim: sg==='f'?"בה":"בו", toHim: sg==='f'?"לה":"לו", defName: sg==='f'?"התלמידה":"התלמיד"
+};}
+function heMotiv(tg,sg){return{
+  know: tg==='f'?"יודעת":"יודע", believe: tg==='f'?"מאמינה":"מאמין",
+  you: sg==='f'?"את":"אתה", invest: sg==='f'?"משקיעה":"משקיע", can: sg==='f'?"יכולה":"יכול",
+  come: sg==='f'?"בואי":"בוא", succeed: sg==='f'?"שתצליחי":"שתצליח"
+};}
+
+/* ===================== PREDICTOR + BACKEND SWITCHES ===================== */
+function localPredict(f){let s=f.attendance*0.32+f.completion*0.30+f.midterm*0.30+(2-f.stress)*4;if(s>=85)return 0;if(s>=70)return 1;if(s>=55)return 2;return 3;}
+async function predict(f){
+  if(USE_BACKEND){
+    try{const r=await fetch(API_BASE+"/predict",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({grade_level:CLASS_GRADE,subject_encoded:f.subject,attendance_percentage:f.attendance,assignment_completion_rate:f.completion,midterm_exam_score:f.midterm,teacher_observed_stress:f.stress})});
+      const d=await r.json(); if(typeof d.label==="number") return d.label;
+    }catch(e){console.warn("/predict fallback",e);}
+  }
+  return localPredict(f);
+}
+async function genParentMessage(o){
+  if(USE_BACKEND){
+    try{const r=await fetch(API_BASE+"/draft_message",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({parent:o.parent,name:o.name,tier:o.tier,concern:o.concern,lang:o.lang,teacher:o.teacher,teacher_gender:o.tg,student_gender:o.sg,topic:o.topic})});
+      const d=await r.json(); if(d&&d.message) return d.message;
+    }catch(e){console.warn("/draft_message fallback",e);}
+  }
+  return draftParentMessage(o);
+}
+async function genMaterials(t,subject,tg){
+  if(USE_BACKEND){
+    try{const r=await fetch(API_BASE+"/generate_materials",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({topic:t,grade:CLASS_GRADE,subject,teacher_gender:tg})});
+      const d=await r.json(); if(d&&d.levels) return d.levels;
+    }catch(e){console.warn("/generate_materials fallback",e);}
+  }
+  return buildLevelsHE(t,subject,tg);
+}
+
+/* ===================== LOGIN ===================== */
+document.querySelectorAll("#lgender label").forEach(l=>l.onclick=()=>{document.querySelectorAll("#lgender label").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");});
+$("loginBtn").onclick=()=>{
+  const u=$("lu"),p=$("lp");const emailOk=u.value.trim().length>0,passOk=p.value.length>=4;
+  toggle(u,"eu",emailOk);toggle(p,"ep",passOk);if(!emailOk||!passOk)return;
+  teacherGender=document.querySelector('input[name=tg]:checked').value;
+  const raw=u.value.split("@")[0].replace(/[._]/g," ").trim();teacherName=raw?cap(raw):"Teacher";
+  setRadio("pTG","ptg",teacherGender);
+  $("login").style.display="none";$("app").style.display="block";bootDashboard();
+};
+function toggle(input,errId,valid){if(valid){input.classList.remove("invalid");$(errId).classList.remove("show");}else{input.classList.add("invalid");$(errId).classList.add("show");}}
+[$("lu"),$("lp")].forEach(el=>el.addEventListener("input",()=>el.classList.remove("invalid")));
+$("logout").onclick=()=>{$("app").style.display="none";$("login").style.display="flex";$("lu").value="";$("lp").value="";};
+
+/* ===================== NAV ===================== */
+const titles={dash:"Dashboard",predict:"AI Student Predictor",bulk:"Bulk CSV Upload",materials:"Differentiated Materials",parent:"Parent Communicator"};
+function navigateTo(p){document.querySelectorAll("#nav button").forEach(x=>x.classList.toggle("active",x.dataset.p===p));document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===p));$("ptitle").textContent=titles[p];window.scrollTo({top:0,behavior:"smooth"});}
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>navigateTo(b.dataset.p));
+
+/* ===================== SYNTHETIC HOMEROOM (18 students) =====================
+   metrics per subject: [attendance, completion, midterm, stress]  (Math, LA, Science)
+   Authentic Israeli first names · heterogeneous, single grade cohort. */
+const PROFILES=[
+  {name:"Noam Levi",      gender:"m", m:[[86,80,76,1],[74,66,62,1],[97,95,93,0]]},
+  {name:"Shira Cohen",    gender:"f", m:[[98,95,93,0],[88,82,78,1],[73,65,61,1]]},
+  {name:"Amit Bar-On",    gender:"m", m:[[60,52,50,2],[62,54,49,2],[72,64,60,1]]},
+  {name:"Yael Mizrahi",   gender:"f", m:[[75,67,63,1],[96,94,95,0],[86,80,76,0]]},
+  {name:"Itay Friedman",  gender:"m", m:[[84,79,75,1],[83,80,74,1],[85,79,76,0]]},
+  {name:"Maya Peretz",    gender:"f", m:[[62,50,52,2],[73,66,63,1],[87,80,75,0]]},
+  {name:"Ori Shalev",     gender:"m", m:[[97,96,94,0],[74,65,61,1],[60,53,49,2]]},
+  {name:"Tamar Azoulay",  gender:"f", m:[[76,68,64,1],[87,82,77,1],[96,94,92,0]]},
+  {name:"Daniel Katz",    gender:"m", m:[[86,81,77,1],[61,54,50,2],[88,80,76,0]]},
+  {name:"Adi Ben-David",  gender:"f", m:[[74,66,62,1],[73,65,61,1],[72,64,60,1]]},
+  {name:"Tomer Gold",     gender:"m", m:[[59,51,48,2],[85,80,75,1],[71,64,60,1]]},
+  {name:"Lihi Avraham",   gender:"f", m:[[98,96,95,0],[97,95,94,0],[86,81,77,0]]},
+  {name:"Eitan Shapira",  gender:"m", m:[[73,65,61,1],[60,52,49,2],[58,50,47,2]]},
+  {name:"Roni Dahan",     gender:"f", m:[[85,80,76,1],[75,67,63,1],[84,79,75,0]]},
+  {name:"Yarden Klein",   gender:"m", m:[[83,79,74,1],[84,80,75,1],[72,64,61,1]]},
+  {name:"Hila Ezra",      gender:"f", m:[[61,53,51,2],[74,66,62,1],[73,65,61,1]]},
+  {name:"Avishai Naor",   gender:"m", m:[[96,94,92,0],[85,80,76,1],[86,80,77,0]]},
+  {name:"Gali Segal",     gender:"f", m:[[74,66,62,1],[96,95,94,0],[59,51,48,2]]}
+];
+function buildClass(){
+  return PROFILES.map(p=>({
+    name:p.name, gender:p.gender,
+    subjects:p.m.map(a=>{const o={attendance:a[0],completion:a[1],midterm:a[2],stress:a[3]};o.tier=localPredict(o);return o;})
+  }));
+}
+let students=buildClass(), currentFilter="all";
+function worstSubject(st){let w=0;st.subjects.forEach((m,i)=>{if(m.tier>st.subjects[w].tier)w=i;});return w;}
+function findStudent(name){if(!name)return null;const n=name.trim().toLowerCase();return students.find(s=>s.name.toLowerCase()===n)||null;}
+
+function bootDashboard(){
+  $("welcome").textContent=`${greeting()}, Teacher ${teacherName} 👋`;
+  $("avatar").textContent=teacherName.charAt(0).toUpperCase();
+  const total=students.length;
+  const needSupport=students.filter(st=>st.subjects.some(m=>m.tier>=2)).length;
+  const allAtt=students.flatMap(st=>st.subjects.map(m=>m.attendance));
+  const avgAtt=Math.round(allAtt.reduce((a,b)=>a+b,0)/allAtt.length);
+  countUp($("sTotal"),total);countUp($("sRisk"),needSupport);countUp($("sAtt"),avgAtt,"%");$("hiCount").textContent=needSupport;
+  renderRoster();renderAlerts();
+}
+function greeting(){const h=new Date().getHours();return h<12?"Good morning":h<18?"Good afternoon":"Good evening";}
+function countUp(el,target,suf=""){let n=0;const step=Math.max(1,Math.ceil(target/24));const t=setInterval(()=>{n+=step;if(n>=target){n=target;clearInterval(t);}el.textContent=n+suf;},22);}
+
+function renderRoster(){
+  const rows=[];
+  students.forEach((st,i)=>{
+    if(currentFilter!=="all" && !st.subjects.some(m=>m.tier===+currentFilter)) return;
+    const wi=worstSubject(st);
+    const cell=si=>{const t=st.subjects[si].tier;
+      let extra=""; if(currentFilter!=="all") extra = (t===+currentFilter)?" lvl-match":" lvl-dim";
+      return `<button class="badge ${BADGE[t]} lvl-btn${extra}" title="🔮 Run inference · ${SUBJECTS[si]}" onclick="runInferenceFor(${i},${si})">${TIERS[t]} · ${HE_TIER[t]}</button>`;
+    };
+    rows.push(`<tr>
+      <td><b>${st.name}</b><div style="font-size:11px;color:var(--ink-soft)">${st.gender==='f'?'בת':'בן'} · כיתה ג'</div></td>
+      <td>${cell(0)}</td><td>${cell(1)}</td><td>${cell(2)}</td>
+      <td><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="run-link" title="Run inference on weakest subject" onclick="runInferenceFor(${i},${wi})">🔮 ערוך בדיקת AI</button><button class="mini" title="Full multi-subject diagnostic PDF" onclick="exportStudentPDF(students[${i}])">📄 PDF</button></div></td>
+    </tr>`);
+  });
+  $("roster").innerHTML = rows.length ? rows.join("") : `<tr><td colspan="5" style="text-align:center;color:var(--ink-soft);padding:28px">אין תלמידים ברמה זו · No students at this level</td></tr>`;
+  $("rosterHint").textContent = currentFilter==="all"
+    ? "Expected Level · רמת יעד — tap any badge to run inference"
+    : `Highlighting subjects at "${TIERS[+currentFilter]} · ${HE_TIER[+currentFilter]}" — faded cells are other levels`;
+}
+document.querySelectorAll(".fbtn").forEach(b=>b.onclick=()=>{
+  currentFilter=b.dataset.l;
+  document.querySelectorAll(".fbtn").forEach(x=>x.classList.toggle("active",x===b));
+  renderRoster();
+  const add=$("addGroupBtn");
+  if(currentFilter==="all"){add.style.display="none";}
+  else{add.style.display="inline-block";add.textContent=`+ הוסף תלמיד לרמת ${HE_TIER[+currentFilter]}`;}
+});
+const PRESET={0:{att:96,comp:95,mid:92,st:0},1:{att:88,comp:82,mid:78,st:1},2:{att:75,comp:68,mid:64,st:1},3:{att:62,comp:55,mid:52,st:2}};
+$("addGroupBtn").onclick=()=>{ if(currentFilter==="all")return; const p=PRESET[+currentFilter];
+  navigateTo("predict");
+  $("fName").value="";$("fAtt").value=p.att;$("vAtt").textContent=p.att+"%";$("fComp").value=p.comp;$("vComp").textContent=p.comp+"%";$("fExam").value=p.mid;setRadio("fStress","st",String(p.st));$("fName").focus();
+};
+function renderAlerts(){
+  const flagged=students.filter(st=>st.subjects.some(m=>m.tier>=2)).slice(0,6);
+  $("alertList").innerHTML=flagged.map(st=>{const wi=worstSubject(st);const m=st.subjects[wi];
+    return `<div class="ai"><div class="adot"><svg viewBox="0 0 24 24" width="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14l-7 7-7-7"/><path d="M12 3v18"/></svg></div><div><div class="at">${st.name} · ${SUBJECTS[wi]} → ${HE_TIER[m.tier]}</div><div class="as">Attendance ${m.attendance}% · Exam ${m.midterm} — review this week</div></div></div>`;
+  }).join("")||`<div class="ai"><div class="as">No significant changes this week 🎉</div></div>`;
+}
+$("bell").onclick=()=>$("alerts").classList.toggle("show");
+document.addEventListener("click",e=>{if(!e.target.closest("#bell")&&!e.target.closest("#alerts"))$("alerts").classList.remove("show");});
+
+/* ===================== DEEP-LINK: ROSTER -> PREDICTOR ===================== */
+function runInferenceFor(i,subj){
+  const st=students[i], m=st.subjects[subj];
+  studentGender=st.gender; setRadio("fSG","fsg",st.gender);
+  $("fName").value=st.name;
+  $("fSubject").value=String(subj);
+  $("fAtt").value=m.attendance;$("vAtt").textContent=m.attendance+"%";
+  $("fComp").value=m.completion;$("vComp").textContent=m.completion+"%";
+  $("fExam").value=m.midterm;
+  setRadio("fStress","st",String(m.stress));
+  navigateTo("predict");
+  $("runBtn").click();
+}
+
+/* ===================== PREDICTOR RUN + RESULT ===================== */
+$("fAtt").oninput=e=>$("vAtt").textContent=e.target.value+"%";
+$("fComp").oninput=e=>$("vComp").textContent=e.target.value+"%";
+document.querySelectorAll("#fStress label").forEach(l=>l.onclick=()=>{document.querySelectorAll("#fStress label").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");});
+document.querySelectorAll("#fSG label").forEach(l=>l.onclick=()=>{document.querySelectorAll("#fSG label").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");studentGender=l.querySelector("input").value;});
+let lastResult=null;
+const LOAD_MSGS=["Reading student signals…","Weighing attendance & completion…","Consulting the model…","Composing recommendations…"];
+$("runBtn").onclick=async()=>{
+  studentGender=document.querySelector('input[name=fsg]:checked').value;
+  const f={grade:CLASS_GRADE,subject:+$("fSubject").value,attendance:+$("fAtt").value,completion:+$("fComp").value,midterm:+$("fExam").value,stress:+document.querySelector('input[name=st]:checked').value};
+  const name=$("fName").value.trim();
+  $("placeholder").style.display="none";$("result").classList.remove("show");$("loading").classList.add("show");$("runBtn").disabled=true;
+  let i=0;const msg=setInterval(()=>{$("loadMsg").textContent=LOAD_MSGS[i++%LOAD_MSGS.length];},650);
+  const tier=await predict(f);
+  setTimeout(()=>{clearInterval(msg);$("loading").classList.remove("show");$("runBtn").disabled=false;showResult(tier,f,name);},1500);
+};
+function showResult(tier,f,name){
+  const info=TIER_INFO[tier];
+  $("resHero").style.background=info.grad;
+  $("resTier").textContent=`${TIERS[tier]} · ${HE_TIER[tier]} — ${SUBJECTS[f.subject]}`;
+  $("resDesc").textContent=info.desc;
+  $("resRecs").innerHTML=info.recs.map(r=>`<li><span class="tick">✓</span><span>${r}</span></li>`).join("");
+  lastResult={tier,f,name};
+  $("ivOut").innerHTML="";$("ivBadge").style.display="none";$("ivTopic").value="";document.querySelectorAll(".iv-btn").forEach(x=>x.classList.remove("active"));
+  const flagged=(f.stress===2)||(f.attendance<70)||(f.completion<70);
+  $("resAlert").innerHTML = flagged ? `
+    <div class="alert-box rtl"><h5>🚨 המלצה לפעולה: זוהה צורך מיידי במעורבות הורים</h5>
+    <p>על פי הניתוח הפדגוגי, מומלץ ליצור קשר עם ההורים בהקדם ולשתף אותם בתמיכה הנדרשת.</p>
+    <button class="ab-btn" onclick="draftFromPredictor()">✨ נסח מכתב אמפתי להורים</button></div>` : "";
+  $("result").classList.add("show");
+}
+$("exportBtn").onclick=()=>{ if(!lastResult)return; const st=findStudent(lastResult.name); if(st) exportStudentPDF(st); else exportSinglePDF(lastResult.name,lastResult.f,lastResult.tier); };
+function draftFromPredictor(){
+  if(!lastResult)return;const {tier,f,name}=lastResult;
+  let concern="Academic Drop"; if(f.stress===2)concern="Emotional Stress"; else if(f.attendance<70)concern="Attendance/Absences";
+  $("pName").value=name||"";$("pTier").value=TIERS[tier];$("pConcern").value=concern;
+  setRadio("pLang","plang","he");setRadio("pSG","psg",studentGender);
+  navigateTo("parent");$("pGen").click();
+}
+
+/* ===================== INTERVENTION ENGINE (level-coupled) ===================== */
+function buildPracticeHE(topic){
+  const base=[`נושא התרגול: ${topic}.`,`שלב 1: סמנו את כל מה שקשור ל${topic} מתוך רשימה קצרה.`,`שלב 2: השלימו משפט אחד: "${topic} הוא ____."`,`שלב 3: פתרו תרגיל פשוט אחד לפי דוגמה מודגמת.`,`טיפ: עבדו לאט, צעד אחר צעד. אין צורך למהר.`];
+  const standard=[`נושא התרגול: ${topic}.`,`פתרו שלושה תרגילים בנושא ${topic}, מהקל אל הקשה.`,`הסבירו במשפט שלם כיצד הגעתם לתשובה באחד מהם.`,`מצאו דוגמה אחת ל${topic} מחיי היום-יום.`];
+  const advanced=[`נושא התרגול: ${topic}.`,`פתרו בעיה הדורשת שני שלבים בנושא ${topic}.`,`נסחו בעצמכם תרגיל חדש בנושא ${topic}, ופתרו אותו.`,`הסבירו לחבר כיצד פותרים — לימוד עמית מחזק הבנה.`,`רפלקציה: מה היה החלק המאתגר, וכיצד התגברתם עליו?`];
+  return {base,standard,advanced};
+}
+function buildMotivationHE(name,topic,sg,tg,teacher){
+  const M=heMotiv(tg,sg);const tp=topic?topic:"הנושא שאתם לומדים";const dn=name&&name.trim()?name.trim()+", ":"";
+  return [
+    `היי ${dn}רציתי לכתוב לך כמה מילים אישיות. 🌟`,
+    `שמתי לב כמה ${M.you} ${M.invest} בלמידה, וזה ממש מרשים אותי.`,
+    `לכל אחד יש נושא שדורש קצת יותר תרגול, וזה לגמרי בסדר. אני ${M.believe} ש${M.you} ${M.can} להצליח ב${tp}, צעד אחרי צעד.`,
+    `${M.come} ננסה יחד: נבחר משימה קטנה אחת בכל יום, ונראה איך ${tp} הופך לקל וברור יותר.`,
+    `אני ${M.know} ${M.succeed}, וגאה בך על כל צעד קדימה. אני כאן בשבילך תמיד. 💪`,
+    `שלך,\n${teacher}`
+  ].join("\n\n");
+}
+function ivTextCard(text){
+  $("ivOut").innerHTML=`<div class="out-card rtl">${escapeHtml(text)}</div><button class="mini" id="ivCopy" style="margin-top:12px">📋 העתק טקסט · Copy</button>`;
+  $("ivCopy").onclick=()=>copyText($("ivCopy"),text);$("ivBadge").style.display="flex";
+}
+function ivPracticeCols(L,featuredKey){
+  const meta={base:{t:"רמת בסיס ופישוט",tag:"רמת תמיכה / ממוצעת",c:"#d8a72a"},standard:{t:"רמת כיתה סטנדרטית",tag:"רמה טובה",c:"#6cb6f5"},advanced:{t:"אתגר והעשרה",tag:"רמת הצטיינות",c:"#5fd0a8"}};
+  window._ivP={base:L.base.join("\n"),standard:L.standard.join("\n"),advanced:L.advanced.join("\n")};
+  const order=[featuredKey,...["base","standard","advanced"].filter(k=>k!==featuredKey)];
+  const html=order.map(k=>{const feat=k===featuredKey;
+    return `<div class="col rtl ${feat?'featured':'muted'}" style="border-top-color:${meta[k].c}">
+      ${feat?`<div class="feat-tag">✓ מומלץ לרמה הצפויה של התלמיד/ה</div>`:''}
+      <div class="col-head"><b>${meta[k].t}</b><div class="tag">${meta[k].tag}</div></div>
+      <div class="col-body">${L[k].map(l=>`<p>${escapeHtml(l)}</p>`).join("")}</div>
+      <button class="copy-btn" data-key="${k}">📋 העתק טקסט</button></div>`;
+  }).join("");
+  $("ivOut").innerHTML=`<div class="feat-grid">${html}</div>`;
+  $("ivOut").querySelectorAll(".copy-btn").forEach(b=>b.onclick=()=>copyText(b,window._ivP[b.dataset.key]));
+  $("ivBadge").style.display="flex";
+}
+async function runIntervention(which,btn){
+  if(!lastResult)return;
+  document.querySelectorAll(".iv-btn").forEach(x=>x.classList.toggle("active",x===btn));
+  const topic=$("ivTopic").value.trim();const {tier,f,name}=lastResult;
+  if(which==='A'){
+    let concern="Academic Drop"; if(f.stress===2)concern="Emotional Stress"; else if(f.attendance<70)concern="Attendance/Absences";
+    const msg=await genParentMessage({name,tier:TIERS[tier],concern,lang:'he',teacher:teacherName,tg:teacherGender,sg:studentGender,topic});
+    ivTextCard(msg);
+  } else if(which==='B'){
+    const featuredKey = tier===0?'advanced':tier===1?'standard':'base';
+    ivPracticeCols(buildPracticeHE(topic||"הנושא הנלמד"), featuredKey);
+  } else {
+    ivTextCard(buildMotivationHE(name,topic,studentGender,teacherGender,teacherName));
+  }
+  $("ivOut").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+$("ivA").onclick=function(){runIntervention('A',this);};
+$("ivB").onclick=function(){runIntervention('B',this);};
+$("ivC").onclick=function(){runIntervention('C',this);};
+
+/* ===================== PDF REPORTS ===================== */
+/* Comprehensive multi-subject diagnostic report for one student */
+function exportStudentPDF(st){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF();
+  const W=210, mx=14, tableW=182;
+  /* header band */
+  doc.setFillColor(95,208,168);doc.rect(0,0,W,30,"F");
+  doc.setTextColor(255);doc.setFont(undefined,"bold");doc.setFontSize(17);
+  doc.text("EduGuard EWS — Student Diagnostic Report",mx,14);
+  doc.setFont(undefined,"normal");doc.setFontSize(10);
+  doc.text("Homeroom Early-Warning System · Expected-Level Profile",mx,22);
+  /* metadata */
+  doc.setTextColor(43,58,74);let y=42;
+  doc.setFontSize(14);doc.setFont(undefined,"bold");doc.text("Student: "+st.name,mx,y);y+=8;
+  doc.setFontSize(10.5);doc.setFont(undefined,"normal");
+  doc.text("Homeroom Class: Grade 3 (Class Gimel)",mx,y);
+  doc.text("Record gender: "+(st.gender==='f'?"Female":"Male"),mx+96,y);y+=6;
+  doc.text("Homeroom teacher: "+teacherName,mx,y);
+  doc.text("Generated: "+new Date().toLocaleDateString(),mx+96,y);y+=6;
+  /* profile summary */
+  const counts=[0,0,0,0];st.subjects.forEach(m=>counts[m.tier]++);
+  doc.setFont(undefined,"bold");
+  doc.text(`Profile summary: ${counts[0]} Excellent · ${counts[1]} Good · ${counts[2]} Average · ${counts[3]} Support`,mx,y);
+  y+=10;
+  /* performance matrix */
+  doc.setFont(undefined,"bold");doc.setFontSize(12);doc.text("Performance Matrix · Expected Level (רמת יעד)",mx,y);y+=4;
+  const cols=[{t:"Subject",w:36},{t:"Attendance",w:26},{t:"Assignments",w:30},{t:"Exam",w:18},{t:"Stress",w:24},{t:"Expected Level",w:48}];
+  let ty=y+3;
+  /* header row */
+  doc.setFillColor(232,241,247);doc.rect(mx,ty,tableW,9,"F");
+  doc.setFont(undefined,"bold");doc.setFontSize(9.5);doc.setTextColor(43,58,74);
+  let x=mx;cols.forEach(c=>{doc.text(c.t,x+2,ty+6);x+=c.w;});
+  ty+=9;
+  const tierFill=[[205,242,221],[214,233,251],[252,239,199],[251,217,217]];
+  const exX=mx+(36+26+30+18+24);
+  st.subjects.forEach((m,si)=>{
+    doc.setFillColor(...tierFill[m.tier]);doc.rect(exX,ty,48,9,"F");
+    doc.setFont(undefined,"normal");doc.setFontSize(9.5);doc.setTextColor(43,58,74);
+    const vals=[SUBJECTS[si],m.attendance+"%",m.completion+"%",String(m.midterm),STRESS[m.stress],TIER_EN[m.tier]];
+    x=mx;vals.forEach((v,ci)=>{doc.text(String(v),x+2,ty+6);x+=cols[ci].w;});
+    doc.setDrawColor(225,232,238);doc.line(mx,ty+9,mx+tableW,ty+9);
+    ty+=9;
+  });
+  doc.setDrawColor(205,216,224);doc.rect(mx,y+3,tableW,9*4); /* outer border: header + 3 rows */
+  /* column separators */
+  let sx=mx;cols.forEach(c=>{sx+=c.w;if(sx<mx+tableW-0.5){doc.line(sx,y+3,sx,y+3+9*4);}});
+  ty+=8;
+  /* recommendations block (weakest subject) */
+  const wi=worstSubject(st);const wt=st.subjects[wi].tier;const info=TIER_INFO[wt];
+  doc.setFillColor(95,208,168);doc.rect(mx,ty,tableW,8,"F");
+  doc.setTextColor(255);doc.setFont(undefined,"bold");doc.setFontSize(11);
+  doc.text("Pedagogical Recommendations & Interventions",mx+3,ty+5.6);
+  ty+=13;doc.setTextColor(43,58,74);doc.setFont(undefined,"bold");doc.setFontSize(10);
+  doc.text(`Priority track: ${SUBJECTS[wi]}  —  Expected Level: ${TIER_EN[wt]}`,mx,ty);ty+=6;
+  doc.setFont(undefined,"normal");doc.setFontSize(9.7);
+  const lead=doc.splitTextToSize(info.desc,tableW);doc.text(lead,mx,ty);ty+=lead.length*5.3+2;
+  info.recs.forEach(r=>{const lines=doc.splitTextToSize("•  "+r,tableW);doc.text(lines,mx,ty);ty+=lines.length*5.3+1.5;});
+  ty+=4;doc.setFontSize(8);doc.setTextColor(120,135,148);
+  doc.text("Confidential — for school staff, principal, and parents. Generated by EduGuard EWS.",mx,ty);
+  doc.save(st.name.replace(/\s+/g,"_")+"_diagnostic_report.pdf");
+}
+/* Ad-hoc single-subject report (for evaluations not in the roster) */
+function exportSinglePDF(name,f,tier){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF();const info=TIER_INFO[tier];
+  doc.setFillColor(95,208,168);doc.rect(0,0,210,30,"F");doc.setTextColor(255);doc.setFont(undefined,"bold");doc.setFontSize(17);
+  doc.text("EduGuard EWS — Expected-Level Report",14,14);doc.setFont(undefined,"normal");doc.setFontSize(10);doc.text("Single-subject evaluation",14,22);
+  doc.setTextColor(43,58,74);let y=42;doc.setFontSize(13);doc.setFont(undefined,"bold");doc.text("Student: "+name,14,y);y+=10;doc.setFontSize(11);doc.setFont(undefined,"normal");
+  [["Class","Grade 3 (Class Gimel)"],["Subject",SUBJECTS[f.subject]],["Attendance",f.attendance+"%"],["Assignment Completion",f.completion+"%"],["Mid-Term Exam Score",f.midterm],["Observed Stress",STRESS[f.stress]]]
+   .forEach(r=>{doc.setFont(undefined,"bold");doc.text(r[0]+":",14,y);doc.setFont(undefined,"normal");doc.text(String(r[1]),80,y);y+=8;});
+  y+=4;doc.setFillColor(240,246,250);doc.roundedRect(14,y,182,16,3,3,"F");doc.setFont(undefined,"bold");doc.setFontSize(13);doc.text("Expected Level:  "+TIER_EN[tier],20,y+10);y+=28;
+  doc.setFontSize(12);doc.text("Recommended Actions",14,y);y+=8;doc.setFontSize(10.5);doc.setFont(undefined,"normal");
+  info.recs.forEach(r=>{const lines=doc.splitTextToSize("•  "+r,182);doc.text(lines,16,y);y+=lines.length*6+1;});
+  doc.save(name.replace(/\s+/g,"_")+"_expected_level.pdf");
+}
+
+/* ===================== BULK + TEMPLATE ===================== */
+const drop=$("drop"),file=$("file");
+drop.onclick=()=>file.click();
+file.onchange=e=>{if(e.target.files[0])readCSV(e.target.files[0]);};
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)readCSV(f);});
+$("sampleBtn").onclick=()=>{const rows=students.flatMap(st=>st.subjects.map((m,si)=>({name:`${st.name} (${SUBJECTS[si]})`,subject:si,attendance:m.attendance,completion:m.completion,midterm:m.midterm,stress:m.stress,tier:m.tier})));renderBulk(rows);};
+$("tmplBtn").onclick=()=>{
+  const headers="subject,attendance_percentage,assignment_completion_rate,midterm_exam_score,teacher_observed_stress\n";
+  const blob=new Blob(["\ufeff"+headers],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="student_template.csv";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+};
+function readCSV(f){const r=new FileReader();r.onload=()=>{try{renderBulk(parseCSV(r.result));}catch(err){alert("Could not parse CSV: "+err.message);}};r.readAsText(f);}
+function parseCSV(text){
+  const lines=text.replace(/^\ufeff/,"").trim().split(/\r?\n/);
+  const head=lines[0].split(",").map(h=>h.trim().toLowerCase());const idx=k=>head.indexOf(k);
+  const subjMap={"math":0,"language arts":1,"science":2,"מתמטיקה":0,"שפה ואוריינות":1,"מדעים":2};
+  return lines.slice(1).filter(l=>l.trim()).map((l,n)=>{
+    const c=l.split(",").map(x=>x.trim());const rawSub=c[idx("subject")];
+    const subject=isNaN(rawSub)?(subjMap[(rawSub||"").toLowerCase()]??0):+rawSub;
+    const f={name:idx("name")>=0?c[idx("name")]:"Student "+(n+1),grade:CLASS_GRADE,subject,attendance:+c[idx("attendance_percentage")]||0,completion:+c[idx("assignment_completion_rate")]||0,midterm:+c[idx("midterm_exam_score")]||0,stress:+c[idx("teacher_observed_stress")]||0};
+    f.tier=localPredict(f);return f;
+  });
+}
+function renderBulk(rows){
+  $("bulkPanel").style.display="block";const risk=rows.filter(r=>r.tier>=2).length;
+  $("bulkSum").textContent=`${rows.length} records processed · ${risk} flagged for support`;
+  $("bulkRows").innerHTML=rows.map(r=>`<tr><td><b>${r.name}</b></td><td>${SUBJECTS[r.subject]||"—"}</td><td>${r.attendance}%</td><td>${r.midterm}</td><td><span class="badge ${BADGE[r.tier]}">${TIERS[r.tier]} · ${HE_TIER[r.tier]}</span></td></tr>`).join("");
+  $("bulkPanel").scrollIntoView({behavior:"smooth"});
+}
+
+/* ===================== MATERIALS (general, all 3 levels) ===================== */
+let lastMaterials={base:"",standard:"",advanced:""};
+function shortTopic(raw){raw=(raw||"").trim();if(!raw)return"הנושא הזה";const first=raw.split(/[.\n]/)[0].trim()||raw;const w=first.split(/\s+/);return w.length<=12?first:w.slice(0,10).join(" ")+"…";}
+function buildLevelsHE(t,subject,tg){
+  const subj=HE_SUBJECTS[subject]||"הנושא", gl="כיתה "+CLASS_GRADE_HE, emph=tg==='f'?"מדגישה":"מדגיש";
+  const base=[`היום נלמד על ${t}.`,`${t} – נושא חשוב שנכיר יחד. נתקדם צעד אחר צעד.`,`הרעיון המרכזי: ${t} נמצא סביבנו, ואפשר לראות אותו בחיי היום-יום.`,`מילות מפתח: שימו לב למילים שהמורה ${emph} בכיתה.`,`משימה קצרה: ציירו ציור פשוט שמראה את ${t}, וספרו לחבר דבר אחד שלמדתם.`,`פתיח למשפט: "היום למדתי ש____."`];
+  const standard=[`מוקד השיעור (${gl}, ${subj}): ${t}.`,`${t} עוזר לנו להבין כיצד הדברים פועלים. בשיעור נברר מהו ${t}, מדוע הוא חשוב, והיכן אנו פוגשים אותו בחיים.`,`פעילות מודרכת: בזוגות, כתבו שלוש דוגמאות הקשורות ל${t} והסבירו כל אחת במשפט שלם.`,`בדיקת הבנה: האם תוכלו לתאר את ${t} במילים שלכם ולתת דוגמה אחת?`,`כתיבה קצרה: כתבו שלושה עד ארבעה משפטים על מה שלמדתם על ${t}.`];
+  const advanced=[`אתגר חקר (${gl}, ${subj}): ${t}.`,`העמיקו: מדוע ${t} חשוב, ומה היה קורה אילו פעל אחרת?`,`השוואה וניגוד: במה ${t} דומה לרעיון אחר שלמדתם, ובמה הוא שונה ממנו?`,`חקירה זוטא: נסחו שאלה על ${t}, שערו תשובה, ותכננו כיצד תוכלו לבדוק אותה בעצמכם.`,`רפלקציה ומטה-קוגניציה: איזה חלק בלמידה אתגר אתכם יותר מכול, וכיצד התמודדתם איתו?`];
+  return {base,standard,advanced};
+}
+function renderMaterials(L){
+  const col=(title,tag,lines,key,color)=>`<div class="col rtl" style="border-top-color:${color}"><div class="col-head"><b>${title}</b><div class="tag">${tag}</div></div><div class="col-body">${lines.map(l=>`<p>${escapeHtml(l)}</p>`).join("")}</div><button class="copy-btn" data-key="${key}">📋 העתק טקסט</button></div>`;
+  lastMaterials={base:L.base.join("\n"),standard:L.standard.join("\n"),advanced:L.advanced.join("\n")};
+  $("mOut").innerHTML=col("רמת בסיס ופישוט","רמת תמיכה / ממוצעת",L.base,"base","#d8a72a")+col("רמת כיתה סטנדרטית","רמה טובה",L.standard,"standard","#6cb6f5")+col("אתגר והעשרה מתקדמת","רמת הצטיינות",L.advanced,"advanced","#5fd0a8");
+  $("mOut").style.display="grid";$("mBadge").style.display="flex";
+  $("mOut").querySelectorAll(".copy-btn").forEach(b=>b.onclick=()=>copyText(b,lastMaterials[b.dataset.key]));
+}
+$("mGen").onclick=async()=>{
+  const t=shortTopic($("mText").value),subject=+$("mSubject").value;
+  $("mOut").style.display="none";$("mBadge").style.display="none";const ml=$("mLoading");ml.classList.add("show");
+  const levels=await genMaterials(t,subject,teacherGender);
+  setTimeout(()=>{ml.classList.remove("show");renderMaterials(levels);$("mOut").scrollIntoView({behavior:"smooth"});},900);
+};
+
+/* ===================== PARENT COMMUNICATOR ===================== */
+document.querySelectorAll("#pLang label").forEach(l=>l.onclick=()=>{document.querySelectorAll("#pLang label").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");});
+document.querySelectorAll("#pTG label").forEach(l=>l.onclick=()=>{document.querySelectorAll("#pTG label").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");teacherGender=l.querySelector("input").value;});
+document.querySelectorAll("#pSG label").forEach(l=>l.onclick=()=>{document.querySelectorAll("#pSG label").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");studentGender=l.querySelector("input").value;});
+function draftParentMessage(o){
+  const teacher=o.teacher||"המורה";
+  if(o.lang==="he"){
+    const G=heForms(o.tg,o.sg);const n=(o.name&&o.name.trim())?o.name.trim():G.defName;
+    const greet=(o.parent&&o.parent.trim())?`שלום ${o.parent.trim()}, כאן ${teacher}.`:`שלום רב, כאן ${teacher}.`;
+    const lead=`אני פונה אליכם מתוך אכפתיות עמוקה ורצון ללוות את ${n} בצורה המיטבית.`;
+    let body={
+      "Academic Drop":`בתקופה האחרונה הבחנתי בירידה קלה בהישגים של ${n}. ${n} ${G.pron} ${G.pupil} ${G.pleasant} ו${G.capable}, ואני ${G.believe} שבעזרה משותפת נצליח לסייע ${G.toHim} לחזור למסלול טוב.`,
+      "Attendance/Absences":`לאחרונה הבחנתי בכמה ימי היעדרות של ${n}. נוכחות סדירה חשובה מאוד הן ללמידה והן לתחושת השייכות בכיתה, ולכן רציתי לבדוק יחד אתכם אם יש דרך שבה אוכל לעזור ולהקל על ההגעה לבית הספר.`,
+      "Emotional Stress":`לאחרונה שמתי לב ש${n} ${G.looks} ${G.tense} ו${G.burdened} מעט יותר מהרגיל, ורציתי לשתף אתכם בעדינות כדי שנוכל לתמוך ${G.inHim} יחד. ${G.wellbeing} חשוב לי מאוד.`,
+      "General Update":`רציתי לעדכן אתכם בקצרה לגבי ${n}. ${n} ${G.continuing} להשתלב יפה בכיתה, ואני ${G.glad} לשתף אתכם בהתקדמות החיובית.`
+    }[o.concern]||"";
+    if(o.topic) body += ` במיוחד שמתי לב לקושי בנושא ${o.topic}, ואשמח שנעבוד עליו יחד.`;
+    const tierLine={
+      "Poor":`לאור התמונה הנוכחית, אשמח אם נוכל למצוא זמן לשיחה קצרה בקרוב — אפילו השבוע, אם יתאים לכם.`,
+      "Average":`אני ${G.think} ששיחה קצרה בינינו תוכל לתרום מאוד, בכל זמן שנוח לכם.`,
+      "Good":`זוהי בעיקר הודעה ידידותית, כדי שנישאר מתואמים ונמשיך לבנות יחד על ההתקדמות.`,
+      "Excellent":`כמו כן, רציתי לשתף בגאווה עד כמה ${n} ${G.succeeding}, ולהודות לכם על התמיכה המתמשכת בבית.`
+    }[o.tier]||"";
+    const close=`תודה מקרב לב על שיתוף הפעולה. אני ${G.standing} לרשותכם לכל שאלה ובכל עת.\n\nבברכה,\n${teacher}`;
+    return [greet,lead,body,tierLine,close].filter(Boolean).join("\n\n");
+  }
+  const n=(o.name&&o.name.trim())?o.name.trim():"your child";
+  const greet=(o.parent&&o.parent.trim())?`Dear ${o.parent.trim()},`:`Dear Parent or Guardian,`;
+  const lead=`This is ${teacher}. I'm reaching out with genuine care, hoping we can support ${n} together in the best possible way.`;
+  let body={
+    "Academic Drop":`Lately I've noticed a small dip in ${n}'s schoolwork, and I'm confident that with a little extra support from both of us, ${n} can get back on a strong path. ${cap(n)} is a capable and valued member of our class.`,
+    "Attendance/Absences":`I've noticed ${n} has missed a number of school days recently, and I wanted to check whether there's anything I can do to make getting to school a little easier.`,
+    "Emotional Stress":`Recently ${n} has seemed a little more tense than usual, and I wanted to share this gently so we can support ${n} together.`,
+    "General Update":`I wanted to send a brief update. ${cap(n)} continues to be a positive part of our classroom.`
+  }[o.concern]||"";
+  if(o.topic) body += ` In particular I noticed some difficulty with ${o.topic}, and I'd love for us to work on it together.`;
+  const tierLine={
+    "Poor":`Given what I'm seeing right now, I'd be grateful if we could find time to talk soon, even this week if that works for you.`,
+    "Average":`I think a short check-in between us would be really valuable, whenever it's convenient.`,
+    "Good":`This is mainly a friendly note so we stay aligned and can keep building on the good progress.`,
+    "Excellent":`I also want to celebrate how well ${n} is doing, and to thank you for all your support at home.`
+  }[o.tier]||"";
+  const close=`Thank you so much for your partnership. Please don't hesitate to reach out with any questions.\n\nWarm regards,\n${teacher}`;
+  return [greet,lead,body,tierLine,close].filter(Boolean).join("\n\n");
+}
+$("pGen").onclick=async()=>{
+  const lang=document.querySelector('input[name=plang]:checked').value;
+  teacherGender=document.querySelector('input[name=ptg]:checked').value;
+  studentGender=document.querySelector('input[name=psg]:checked').value;
+  const msg=await genParentMessage({parent:$("pParent").value,name:$("pName").value,tier:$("pTier").value,concern:$("pConcern").value,lang,teacher:teacherName,tg:teacherGender,sg:studentGender});
+  const out=$("pOut");out.textContent=msg;out.classList.toggle("rtl",lang==="he");out.style.display="block";
+  $("pPlaceholder").style.display="none";$("pBadge").style.display="flex";
+  const cp=$("pCopy");cp.style.display="inline-block";cp.onclick=()=>copyText(cp,msg);
+};
+
+/* ===================== CLIPBOARD ===================== */
+function copyText(btn,text){const done=()=>{const o=btn.textContent;btn.textContent="✓ הועתק!";setTimeout(()=>btn.textContent=o,1400);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));}else fallbackCopy(text,done);}
+function fallbackCopy(text,cb){const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();try{document.execCommand("copy");}catch(e){}document.body.removeChild(ta);cb&&cb();}
+</script>
