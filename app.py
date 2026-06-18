@@ -11,8 +11,13 @@ import os, joblib, numpy as np, pandas as pd
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder="static", template_folder="static")
 CORS(app)
+
+# הראוט הזה חיוני כדי שמי שנכנס ללינק הראשי יקבל את האתר שלך
+@app.route('/')
+def serve_index():
+    return send_from_directory(app.static_folder, 'index.html')
 
 # ---- Model: "the brain" (unchanged) ---------------------------------
 MODEL_PATH = "student_risk_model.pkl"
