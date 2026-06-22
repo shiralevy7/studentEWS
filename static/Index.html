@@ -336,7 +336,7 @@
 <script>
 /* ===================== CONFIG ===================== */
 const USE_BACKEND = true;
-const API_BASE = "";
+const API_BASE = "http://localhost:5000";
 const CLASS_GRADE = 3, CLASS_GRADE_HE = "ג'";
 
 const TIERS    = ["Excellent","Good","Average","Poor"];
@@ -477,7 +477,13 @@ function countUp(el,target,suf=""){let n=0;const step=Math.max(1,Math.ceil(targe
 
 function renderRoster(){
   const rows=[];
-  students.forEach((st,i)=>{
+  // Early-warning prioritization: sort a shallow copy by worst-subject tier (desc),
+  // so Poor (3) and Average (2) rise to the top. Each student's ORIGINAL index is
+  // preserved (idx) so the deep-link / PDF onclick handlers still target the right record.
+  const sortedStudents=[...students]
+    .map((st,idx)=>({st,idx}))
+    .sort((a,b)=> b.st.subjects[worstSubject(b.st)].tier - a.st.subjects[worstSubject(a.st)].tier);
+  sortedStudents.forEach(({st,idx:i})=>{
     if(currentFilter!=="all" && !st.subjects.some(m=>m.tier===+currentFilter)) return;
     const wi=worstSubject(st);
     const cell=si=>{const t=st.subjects[si].tier;
