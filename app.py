@@ -17,7 +17,7 @@ CORS(app)
 # הראוט הזה חיוני כדי שמי שנכנס ללינק הראשי יקבל את האתר שלך
 @app.route('/')
 def serve_index():
-    return send_from_directory(app.static_folder, 'Index.html')
+    return send_from_directory(app.static_folder, 'index.html')
 
 # ---- Model: "the brain" (unchanged) ---------------------------------
 MODEL_PATH = "student_risk_model.pkl"
