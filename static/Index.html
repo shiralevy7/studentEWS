@@ -3,13 +3,10 @@
   EduGuard EWS — Multi-Subject Homeroom Monitor (כיתה ג')
   Single-file SPA · HTML5 + CSS3 + Vanilla JS
   ------------------------------------------------------------
-  • 18-student synthetic homeroom, 3 subjects each
-  • Filter highlights matching subjects (gap matrix)
-  • Deep-link roster -> Predictor (auto-fill + auto-run)
-  • Level-coupled practice generator
-  • Comprehensive multi-subject diagnostic PDF
-  • Strict Pedagogical Hebrew Guard (teacher + student gender)
-  BACKEND switches: /predict · /draft_message · /generate_materials
+  + NEW: מעקב התנהגותי (Behavioral Tracking & Crisis Mgmt)
+  + NEW: מערכת שעות חכמה (Smart Schedule / burnout prevention)
+  Both modules are vanilla-JS, RTL Hebrew, and reuse the
+  existing students roster + design system.
   ============================================================
 -->
 <meta charset="utf-8" />
@@ -169,6 +166,61 @@
   .alerts .at{font-size:13.5px;font-weight:700}.alerts .as{font-size:12px;color:var(--ink-soft);margin-top:2px}
   .placeholder{text-align:center;padding:42px 10px;color:var(--ink-soft)}
   .placeholder .pic{width:60px;height:60px;border-radius:16px;background:var(--mint-soft);color:var(--exc-tx);display:grid;place-items:center;margin:0 auto 12px}
+
+  /* ===================== NEW: BEHAVIORAL + SCHEDULE ===================== */
+  .rtlcard{direction:rtl;text-align:right}
+  .beh-grid{display:grid;grid-template-columns:2fr 3fr;gap:20px}
+  .stars{display:flex;gap:8px}
+  .star-btn{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:11px 0;display:grid;place-items:center;font-size:19px;color:var(--ink-soft);transition:.15s}
+  .star-btn.on{border-color:var(--mint);background:var(--mint-soft);color:var(--exc-tx)}
+  .cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cat-btn{border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:11px;font-size:13px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px;justify-content:center;transition:.15s}
+  .cat-btn.on{border-color:var(--mint);background:var(--mint-soft);color:var(--exc-tx)}
+  .ins-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+  .ins-stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+  .ins-stat .ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin-bottom:11px;font-size:19px}
+  .ins-stat .l{font-size:12px;color:var(--ink-soft);font-weight:600}.ins-stat .v{font-size:28px;font-weight:800;margin-top:2px}
+  .callouts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+  .callout{border-radius:16px;padding:15px 17px;display:flex;gap:11px;align-items:flex-start;direction:rtl;text-align:right;font-size:13px;line-height:1.5}
+  .callout .ce{font-size:20px;flex-shrink:0}
+  .callout.time{background:linear-gradient(180deg,#fdeeee,#fde6e6);border:1.5px solid #f3c0c0;color:#7a4a4a}
+  .callout.ctx{background:linear-gradient(180deg,var(--blue-soft),#eaf3fd);border:1.5px solid #c7ddf5;color:#3d5d7a}
+  .callout b{display:block;margin-bottom:3px;font-size:13.5px}
+  .callout.time b{color:var(--poor-tx)}.callout.ctx b{color:var(--good-tx)}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .chart-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+  .chart-card h5{font-size:13.5px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+  .bar{margin-bottom:12px}
+  .bar .bl{display:flex;justify-content:space-between;margin-bottom:6px}
+  .bar .bl .bn{font-size:13px;font-weight:600;color:var(--ink)}.bar .bl .bv{font-size:11.5px;font-weight:700;color:var(--ink-soft)}
+  .bar .bt{height:9px;border-radius:999px;background:var(--line);overflow:hidden}
+  .bar .bf{height:100%;border-radius:999px;transition:width .5s}
+  .rank-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f1f6f9}
+  .rank-row:last-child{border:none}.rank-row .rn{font-size:13.5px;font-weight:600}
+  .rank-row .rb{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--mint-soft);color:var(--exc-tx)}
+
+  /* schedule */
+  .sch-cols{display:grid;grid-template-columns:3fr 1fr;gap:18px}
+  .sch-wrap{overflow-x:auto}
+  .sch{min-width:660px}
+  .sch-row{display:grid;grid-template-columns:80px repeat(5,1fr);gap:8px;margin-bottom:8px}
+  .sch-hd{text-align:center;padding:8px 4px;border-radius:10px;font-size:12px;font-weight:800}
+  .sch-hd .hc{font-size:10px;font-weight:600;opacity:.8;display:block}
+  .sch-time{background:#f4f8fb;color:var(--ink-soft);border-radius:10px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10.5px;font-weight:700;padding:2px}
+  .sch-cell{border-radius:11px;padding:8px 4px;text-align:center;border:1.5px solid var(--line);min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:.15s}
+  .sch-cell .ct{font-size:12px;font-weight:800;line-height:1.2}.sch-cell .cs{font-size:10.5px;opacity:.85;margin-top:2px}
+  .sch-cell.window{cursor:pointer}.sch-cell.window:hover{filter:brightness(.99);transform:translateY(-1px)}
+  .sch-cell.sel{outline:2.5px solid var(--mint);outline-offset:-1px;transform:scale(1.03);box-shadow:0 8px 16px -10px var(--mint)}
+  .sch-brk{grid-column:2 / -1;border-radius:10px;background:var(--mint-soft);color:var(--exc-tx);display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:800;min-height:38px}
+  .rec-card{border-radius:14px;padding:16px}
+  .rec-ico{width:42px;height:42px;border-radius:12px;background:#fff;display:grid;place-items:center;font-size:20px;margin-bottom:11px}
+  .rec-card .rt{font-size:14px;font-weight:800;margin-bottom:5px}.rec-card .rn{font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+  .rec-meta{font-size:11px;color:var(--ink-soft);margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
+  .warn-box{border-radius:12px;padding:12px;margin-top:6px;background:var(--avg-bg);display:flex;gap:8px;align-items:flex-start}
+  .warn-box .we{font-size:16px;flex-shrink:0}.warn-box .wt{font-size:12px;font-weight:700;color:var(--avg-tx);line-height:1.5}
+
+  @media(max-width:980px){.beh-grid{grid-template-columns:1fr}.sch-cols{grid-template-columns:1fr}}
+  @media(max-width:720px){.ins-cards{grid-template-columns:1fr}.chart-grid{grid-template-columns:1fr}.callouts{grid-template-columns:1fr}.cat-grid{grid-template-columns:1fr}}
   @media(max-width:860px){.sidebar{display:none}.cards{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.cols{grid-template-columns:1fr}.feat-grid{grid-template-columns:1fr}.iv-grid{grid-template-columns:1fr}.content{padding:18px}.topbar{padding:14px 18px}.alerts{right:14px;left:14px;width:auto}}
 </style>
 
@@ -196,6 +248,8 @@
         <button data-p="bulk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Bulk CSV Upload</button>
         <button data-p="materials"><span class="emoji">📑</span> Differentiated Materials</button>
         <button data-p="parent"><span class="emoji">💬</span> Parent Communicator</button>
+        <button data-p="behavior"><span class="emoji">📋</span> מעקב התנהגותי</button>
+        <button data-p="schedule"><span class="emoji">🗓️</span> מערכת שעות חכמה</button>
       </nav>
       <div class="side-foot"><button id="logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Sign out</button></div>
     </aside>
@@ -328,6 +382,45 @@
             </div>
           </div>
         </section>
+
+        <!-- ===================== NEW: BEHAVIORAL TRACKING ===================== -->
+        <section class="page" id="behavior">
+          <div class="banner rtlcard">
+            <h3>📋 מערכת תיעוד וניהול משברים התנהגותיים</h3>
+            <p>תיעוד מהיר של אירועים והפקת תובנות פדגוגיות לזיהוי דפוסים ומניעת הסלמה.</p>
+          </div>
+          <div class="beh-grid">
+            <!-- log form -->
+            <div class="fcard rtlcard">
+              <div class="fc-title">טופס דיווח מהיר</div>
+              <div class="fc-sub">תיעוד אירוע בודד תוך פחות מדקה.</div>
+              <div class="ff"><label>שם התלמיד/ה</label><select id="behStudent"></select></div>
+              <div class="row">
+                <div class="ff" style="flex:1"><label>יום האירוע</label><select id="behDay"></select></div>
+                <div class="ff" style="flex:1"><label>זמן האירוע</label><select id="behPart"><option>בוקר</option><option selected>צהריים</option></select></div>
+              </div>
+              <div class="ff"><label>מדד חומרה</label><div class="stars" id="behStars"></div></div>
+              <div class="ff"><label>קטגוריה</label><div class="cat-grid" id="behCats"></div></div>
+              <div class="ff"><label>הקשר / מיקום</label><select id="behLoc"></select></div>
+              <button class="run" id="behSave">💾 שמור אירוע</button>
+            </div>
+            <!-- insights -->
+            <div id="behInsights"></div>
+          </div>
+        </section>
+
+        <!-- ===================== NEW: SMART SCHEDULE ===================== -->
+        <section class="page" id="schedule">
+          <div class="banner rtlcard">
+            <h3>🗓️ מערכת שעות חכמה למניעת שחיקה</h3>
+            <p>לחצו על חלון פנוי (ירוק/אפור) כדי לקבל המלצה חכמה לניהול הזמן. ראשון–חמישי.</p>
+          </div>
+          <div class="sch-cols">
+            <div class="fcard rtlcard"><div class="sch-wrap"><div class="sch" id="schGrid"></div></div></div>
+            <div id="schSide"></div>
+          </div>
+        </section>
+
       </div>
     </div>
   </div>
@@ -340,7 +433,7 @@ const API_BASE = "http://localhost:5000";
 const CLASS_GRADE = 3, CLASS_GRADE_HE = "ג'";
 
 const TIERS    = ["Excellent","Good","Average","Poor"];
-const TIER_EN  = ["Excellent","Good","Average","Support"]; // report-friendly label for tier 3
+const TIER_EN  = ["Excellent","Good","Average","Support"];
 const SUBJECTS = ["Math","Language Arts","Science"];
 const STRESS   = ["Low","Medium","High"];
 const BADGE    = ["b-exc","b-good","b-avg","b-poor"];
@@ -425,13 +518,11 @@ function toggle(input,errId,valid){if(valid){input.classList.remove("invalid");$
 $("logout").onclick=()=>{$("app").style.display="none";$("login").style.display="flex";$("lu").value="";$("lp").value="";};
 
 /* ===================== NAV ===================== */
-const titles={dash:"Dashboard",predict:"AI Student Predictor",bulk:"Bulk CSV Upload",materials:"Differentiated Materials",parent:"Parent Communicator"};
+const titles={dash:"Dashboard",predict:"AI Student Predictor",bulk:"Bulk CSV Upload",materials:"Differentiated Materials",parent:"Parent Communicator",behavior:"מעקב התנהגותי",schedule:"מערכת שעות חכמה"};
 function navigateTo(p){document.querySelectorAll("#nav button").forEach(x=>x.classList.toggle("active",x.dataset.p===p));document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===p));$("ptitle").textContent=titles[p];window.scrollTo({top:0,behavior:"smooth"});}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>navigateTo(b.dataset.p));
 
-/* ===================== SYNTHETIC HOMEROOM (18 students) =====================
-   metrics per subject: [attendance, completion, midterm, stress]  (Math, LA, Science)
-   Authentic Israeli first names · heterogeneous, single grade cohort. */
+/* ===================== SYNTHETIC HOMEROOM (18 students) ===================== */
 const PROFILES=[
   {name:"Noam Levi",      gender:"m", m:[[86,80,76,1],[74,66,62,1],[97,95,93,0]]},
   {name:"Shira Cohen",    gender:"f", m:[[98,95,93,0],[88,82,78,1],[73,65,61,1]]},
@@ -471,15 +562,13 @@ function bootDashboard(){
   const avgAtt=Math.round(allAtt.reduce((a,b)=>a+b,0)/allAtt.length);
   countUp($("sTotal"),total);countUp($("sRisk"),needSupport);countUp($("sAtt"),avgAtt,"%");$("hiCount").textContent=needSupport;
   renderRoster();renderAlerts();
+  initBehavior();initSchedule();   /* <-- NEW MODULES INIT */
 }
 function greeting(){const h=new Date().getHours();return h<12?"Good morning":h<18?"Good afternoon":"Good evening";}
 function countUp(el,target,suf=""){let n=0;const step=Math.max(1,Math.ceil(target/24));const t=setInterval(()=>{n+=step;if(n>=target){n=target;clearInterval(t);}el.textContent=n+suf;},22);}
 
 function renderRoster(){
   const rows=[];
-  // Early-warning prioritization: sort a shallow copy by worst-subject tier (desc),
-  // so Poor (3) and Average (2) rise to the top. Each student's ORIGINAL index is
-  // preserved (idx) so the deep-link / PDF onclick handlers still target the right record.
   const sortedStudents=[...students]
     .map((st,idx)=>({st,idx}))
     .sort((a,b)=> b.st.subjects[worstSubject(b.st)].tier - a.st.subjects[worstSubject(a.st)].tier);
@@ -635,17 +724,14 @@ $("ivB").onclick=function(){runIntervention('B',this);};
 $("ivC").onclick=function(){runIntervention('C',this);};
 
 /* ===================== PDF REPORTS ===================== */
-/* Comprehensive multi-subject diagnostic report for one student */
 function exportStudentPDF(st){
   const {jsPDF}=window.jspdf;const doc=new jsPDF();
   const W=210, mx=14, tableW=182;
-  /* header band */
   doc.setFillColor(95,208,168);doc.rect(0,0,W,30,"F");
   doc.setTextColor(255);doc.setFont(undefined,"bold");doc.setFontSize(17);
   doc.text("EduGuard EWS — Student Diagnostic Report",mx,14);
   doc.setFont(undefined,"normal");doc.setFontSize(10);
   doc.text("Homeroom Early-Warning System · Expected-Level Profile",mx,22);
-  /* metadata */
   doc.setTextColor(43,58,74);let y=42;
   doc.setFontSize(14);doc.setFont(undefined,"bold");doc.text("Student: "+st.name,mx,y);y+=8;
   doc.setFontSize(10.5);doc.setFont(undefined,"normal");
@@ -653,16 +739,13 @@ function exportStudentPDF(st){
   doc.text("Record gender: "+(st.gender==='f'?"Female":"Male"),mx+96,y);y+=6;
   doc.text("Homeroom teacher: "+teacherName,mx,y);
   doc.text("Generated: "+new Date().toLocaleDateString(),mx+96,y);y+=6;
-  /* profile summary */
   const counts=[0,0,0,0];st.subjects.forEach(m=>counts[m.tier]++);
   doc.setFont(undefined,"bold");
   doc.text(`Profile summary: ${counts[0]} Excellent · ${counts[1]} Good · ${counts[2]} Average · ${counts[3]} Support`,mx,y);
   y+=10;
-  /* performance matrix */
   doc.setFont(undefined,"bold");doc.setFontSize(12);doc.text("Performance Matrix · Expected Level (רמת יעד)",mx,y);y+=4;
   const cols=[{t:"Subject",w:36},{t:"Attendance",w:26},{t:"Assignments",w:30},{t:"Exam",w:18},{t:"Stress",w:24},{t:"Expected Level",w:48}];
   let ty=y+3;
-  /* header row */
   doc.setFillColor(232,241,247);doc.rect(mx,ty,tableW,9,"F");
   doc.setFont(undefined,"bold");doc.setFontSize(9.5);doc.setTextColor(43,58,74);
   let x=mx;cols.forEach(c=>{doc.text(c.t,x+2,ty+6);x+=c.w;});
@@ -677,11 +760,9 @@ function exportStudentPDF(st){
     doc.setDrawColor(225,232,238);doc.line(mx,ty+9,mx+tableW,ty+9);
     ty+=9;
   });
-  doc.setDrawColor(205,216,224);doc.rect(mx,y+3,tableW,9*4); /* outer border: header + 3 rows */
-  /* column separators */
+  doc.setDrawColor(205,216,224);doc.rect(mx,y+3,tableW,9*4);
   let sx=mx;cols.forEach(c=>{sx+=c.w;if(sx<mx+tableW-0.5){doc.line(sx,y+3,sx,y+3+9*4);}});
   ty+=8;
-  /* recommendations block (weakest subject) */
   const wi=worstSubject(st);const wt=st.subjects[wi].tier;const info=TIER_INFO[wt];
   doc.setFillColor(95,208,168);doc.rect(mx,ty,tableW,8,"F");
   doc.setTextColor(255);doc.setFont(undefined,"bold");doc.setFontSize(11);
@@ -695,7 +776,6 @@ function exportStudentPDF(st){
   doc.text("Confidential — for school staff, principal, and parents. Generated by EduGuard EWS.",mx,ty);
   doc.save(st.name.replace(/\s+/g,"_")+"_diagnostic_report.pdf");
 }
-/* Ad-hoc single-subject report (for evaluations not in the roster) */
 function exportSinglePDF(name,f,tier){
   const {jsPDF}=window.jspdf;const doc=new jsPDF();const info=TIER_INFO[tier];
   doc.setFillColor(95,208,168);doc.rect(0,0,210,30,"F");doc.setTextColor(255);doc.setFont(undefined,"bold");doc.setFontSize(17);
@@ -820,6 +900,205 @@ $("pGen").onclick=async()=>{
   $("pPlaceholder").style.display="none";$("pBadge").style.display="flex";
   const cp=$("pCopy");cp.style.display="inline-block";cp.onclick=()=>copyText(cp,msg);
 };
+
+/* =====================================================================
+   NEW MODULE 1 — BEHAVIORAL TRACKING & CRISIS MANAGEMENT
+   ===================================================================== */
+const BEH_DAYS=["ראשון","שני","שלישי","רביעי","חמישי"];
+const BEH_CATS=[
+  {id:"verbal",  label:"הפרעה מילולית", emoji:"🗣️", tx:"#8f6d12"},
+  {id:"physical",label:"אלימות פיזית",  emoji:"✋", tx:"#b04545"},
+  {id:"emotional",label:"מצוקה רגשית",  emoji:"💙", tx:"#1f5f9e"},
+  {id:"property",label:"פגיעה ברכוש",   emoji:"🛡️", tx:"#1f7a4d"}
+];
+const BEH_LOCS=["הפסקה","שיעור מדעים","שיעור מתמטיקה","כללי"];
+const catOf=id=>BEH_CATS.find(c=>c.id===id)||BEH_CATS[0];
+// seeded — weighted to Tuesday(2) afternoon + science for "Ori Shalev"
+let incidents=[
+  {id:1,student:"Ori Shalev", day:2,part:"צהריים",severity:4,cat:"verbal",  loc:"שיעור מדעים"},
+  {id:2,student:"Ori Shalev", day:2,part:"צהריים",severity:3,cat:"verbal",  loc:"שיעור מדעים"},
+  {id:3,student:"Ori Shalev", day:4,part:"צהריים",severity:5,cat:"physical",loc:"שיעור מדעים"},
+  {id:4,student:"Amit Bar-On",day:2,part:"צהריים",severity:2,cat:"emotional",loc:"הפסקה"},
+  {id:5,student:"Maya Peretz", day:0,part:"בוקר",  severity:2,cat:"emotional",loc:"שיעור מתמטיקה"},
+  {id:6,student:"Ori Shalev", day:2,part:"בוקר",  severity:3,cat:"property",loc:"שיעור מדעים"},
+  {id:7,student:"Hila Ezra",  day:3,part:"צהריים",severity:3,cat:"verbal",  loc:"הפסקה"},
+  {id:8,student:"Amit Bar-On",day:2,part:"צהריים",severity:4,cat:"physical",loc:"הפסקה"}
+];
+let behForm={severity:3,cat:"verbal"};
+function genderOfName(n){const p=PROFILES.find(x=>x.name===n);return p?p.gender:"m";}
+
+function initBehavior(){
+  // student dropdown from existing roster
+  $("behStudent").innerHTML=students.map((s,i)=>`<option value="${escapeHtml(s.name)}"${i===6?" selected":""}>${escapeHtml(s.name)}</option>`).join("");
+  // day dropdown
+  $("behDay").innerHTML=BEH_DAYS.map((d,i)=>`<option value="${i}"${i===2?" selected":""}>${d}</option>`).join("");
+  // location dropdown
+  $("behLoc").innerHTML=BEH_LOCS.map((l,i)=>`<option${i===1?" selected":""}>${l}</option>`).join("");
+  renderStars();renderCats();renderBehInsights();
+  $("behSave").onclick=behSaveIncident;
+}
+function renderStars(){
+  $("behStars").innerHTML=[1,2,3,4,5].map(n=>`<button class="star-btn${n<=behForm.severity?' on':''}" data-n="${n}">${n<=behForm.severity?'★':'☆'}</button>`).join("");
+  $("behStars").querySelectorAll(".star-btn").forEach(b=>b.onclick=()=>{behForm.severity=+b.dataset.n;renderStars();});
+}
+function renderCats(){
+  $("behCats").innerHTML=BEH_CATS.map(c=>`<button class="cat-btn${behForm.cat===c.id?' on':''}" data-id="${c.id}">${c.emoji} ${c.label}</button>`).join("");
+  $("behCats").querySelectorAll(".cat-btn").forEach(b=>b.onclick=()=>{behForm.cat=b.dataset.id;renderCats();});
+}
+function behSaveIncident(){
+  incidents.unshift({
+    id:Date.now(),
+    student:$("behStudent").value,
+    day:+$("behDay").value,
+    part:$("behPart").value,
+    severity:behForm.severity,
+    cat:behForm.cat,
+    loc:$("behLoc").value
+  });
+  renderBehInsights();
+  const btn=$("behSave");const o=btn.textContent;btn.textContent="✓ האירוע נשמר!";btn.style.background="linear-gradient(135deg,#5fd0a8,#1f7a4d)";
+  setTimeout(()=>{btn.textContent=o;btn.style.background="";},1500);
+}
+function behBar(name,value,max,color,sub){
+  const pct=max?Math.round(value/max*100):0;
+  return `<div class="bar"><div class="bl"><span class="bn">${name}</span><span class="bv">${sub??value}</span></div><div class="bt"><div class="bf" style="width:${pct}%;background:${color}"></div></div></div>`;
+}
+function renderBehInsights(){
+  const total=incidents.length;
+  const byDay=BEH_DAYS.map((_,i)=>incidents.filter(x=>x.day===i).length);
+  const byCat=BEH_CATS.map(c=>({...c,n:incidents.filter(x=>x.cat===c.id).length}));
+  const byLoc=BEH_LOCS.map(l=>({l,n:incidents.filter(x=>x.loc===l).length}));
+  const byStud={};incidents.forEach(x=>{byStud[x.student]=(byStud[x.student]||0)+1;});
+  const ranked=Object.entries(byStud).sort((a,b)=>b[1]-a[1]);
+  const highSev=incidents.filter(x=>x.severity>=4).length;
+  const avgSev=total?(incidents.reduce((s,x)=>s+x.severity,0)/total).toFixed(1):"0";
+  const peakDay=byDay.indexOf(Math.max(...byDay,0));
+  const peakDayCount=byDay[peakDay]||0;
+  const peakAfternoon=peakDayCount>0 && incidents.filter(x=>x.day===peakDay&&x.part==="צהריים").length >= peakDayCount/2;
+
+  let topCallout="";
+  if(ranked.length){
+    const name=ranked[0][0];
+    const locs={};incidents.filter(x=>x.student===name).forEach(x=>{locs[x.loc]=(locs[x.loc]||0)+1;});
+    const topLoc=Object.entries(locs).sort((a,b)=>b[1]-a[1])[0][0];
+    const verb=genderOfName(name)==='f'?"מציגה":"מציג";
+    topCallout=`<div class="callout ctx"><span class="ce">📍</span><div><b>דפוס הקשר</b>${escapeHtml(name)} ${verb} הפרעות בעיקר ב${escapeHtml(topLoc)}.</div></div>`;
+  }
+
+  const maxDay=Math.max(1,...byDay), maxCat=Math.max(1,...byCat.map(c=>c.n)), maxLoc=Math.max(1,...byLoc.map(l=>l.n));
+
+  $("behInsights").innerHTML=`
+    <div class="ins-cards">
+      <div class="ins-stat rtlcard"><div class="ico" style="background:var(--blue-soft);color:var(--good-tx)">📋</div><div class="l">סך אירועים מתועדים</div><div class="v">${total}</div></div>
+      <div class="ins-stat rtlcard"><div class="ico" style="background:var(--poor-bg);color:var(--poor-tx)">⚠️</div><div class="l">אירועים בחומרה גבוהה</div><div class="v">${highSev}</div></div>
+      <div class="ins-stat rtlcard"><div class="ico" style="background:var(--avg-bg);color:var(--avg-tx)">📈</div><div class="l">ממוצע חומרה</div><div class="v">${avgSev}</div></div>
+    </div>
+    <div class="callouts">
+      <div class="callout time"><span class="ce">📈</span><div><b>דפוס זמן</b>עלייה באירועים בימי ${BEH_DAYS[peakDay]}${peakAfternoon?" בצהריים":""}.</div></div>
+      ${topCallout}
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card rtlcard"><h5>📊 אירועים לפי יום</h5>${BEH_DAYS.map((d,i)=>behBar(d,byDay[i],maxDay,i===peakDay?"var(--poor-tx)":"var(--blue)")).join("")}</div>
+      <div class="chart-card rtlcard"><h5>🗣️ פילוח לפי קטגוריה</h5>${byCat.map(c=>behBar(c.label,c.n,maxCat,c.tx)).join("")}</div>
+      <div class="chart-card rtlcard"><h5>📍 פילוח לפי מיקום</h5>${byLoc.map(l=>behBar(l.l,l.n,maxLoc,"var(--mint)")).join("")}</div>
+      <div class="chart-card rtlcard"><h5>👥 תלמידים בולטים</h5>${ranked.length?ranked.slice(0,5).map(([n,c])=>`<div class="rank-row"><span class="rn">${escapeHtml(n)}</span><span class="rb">${c} אירועים</span></div>`).join(""):`<p style="text-align:center;color:var(--ink-soft);padding:14px">אין נתונים עדיין 🎉</p>`}</div>
+    </div>`;
+}
+
+/* =====================================================================
+   NEW MODULE 2 — SMART SCHEDULE / BURNOUT PREVENTION
+   ===================================================================== */
+const SCH_DAYS=["ראשון","שני","שלישי","רביעי","חמישי"];
+const SCH_PERIODS=[
+  {t:"08:00–08:45"},{t:"08:50–09:35"},
+  {t:"09:35–09:55",brk:true},{t:"09:55–10:40"},
+  {t:"10:45–11:30"},{t:"11:30–11:50",brk:true},
+  {t:"11:50–12:35"},{t:"12:40–13:25"}
+];
+const SCH_RECS={
+  rest:{t:"הפסקה מתודית / מנוחה",note:"מומלץ ביותר — נתק קצר מהכיתה מפחית שחיקה ומשפר ריכוז בשיעור הבא.",emoji:"☕",best:true},
+  grade:{t:"זמן ייעודי לבדיקת מבחני מדעים",note:"מקבץ בדיקה רצוף יעיל יותר מבדיקה מפוצלת לאורך היום.",emoji:"📝",best:false},
+  hw:{t:"מעבר על תרגילי בית",note:"סקירה מהירה לאיתור קשיים חוזרים לפני השיעור הבא.",emoji:"📖",best:false},
+  prep:{t:"הכנת חומרי הוראה מותאמים",note:"שילוב טוב לפני שיעור עם פערי רמות בכיתה.",emoji:"📋",best:false},
+  log:{t:"תיעוד אירועים התנהגותיים",note:"תיעוד סמוך לאירוע מדויק יותר — חבר למודול המעקב.",emoji:"📌",best:false}
+};
+const _L=(subject,cls)=>({type:"lesson",subject,cls});
+const _W=rec=>({type:"window",rec});
+// SCH_GRID[period][day]; break periods are null
+const SCH_GRID=[
+  [_L("מתמטיקה","ב'"),_L("מדעים","ג'"),_L("שפה","ב'"),_L("מתמטיקה","ג'"),_L("מדעים","ב'")],
+  [_L("שפה","ב'"),_W("grade"),_L("מתמטיקה","ב'"),_L("מדעים","ג'"),_L("שפה","ג'")],
+  null,
+  [_L("מדעים","ב'"),_L("מתמטיקה","ג'"),_W("rest"),_L("שפה","ב'"),_W("hw")],
+  [_W("prep"),_L("שפה","ג'"),_L("מדעים","ב'"),_W("rest"),_L("מתמטיקה","ג'")],
+  null,
+  [_L("מתמטיקה","ג'"),_W("log"),_L("שפה","ב'"),_L("מדעים","ג'"),_W("rest")],
+  [_W("rest"),_L("מתמטיקה","ב'"),_W("grade"),_W("prep"),_L("שפה","ב'")]
+];
+let schSel={p:3,d:2};
+
+function initSchedule(){ renderSchedule(); }
+function schLoads(){
+  return SCH_DAYS.map((_,d)=>SCH_GRID.filter(row=>row&&row[d]&&row[d].type==="lesson").length);
+}
+function renderSchedule(){
+  const loads=schLoads();const maxLoad=Math.max(...loads);
+  const windowsPerDay=SCH_DAYS.map((_,d)=>SCH_GRID.filter(row=>row&&row[d]&&row[d].type==="window").length);
+
+  // header
+  let html=`<div class="sch-row"><div class="sch-time" style="font-weight:800">שעה</div>`;
+  SCH_DAYS.forEach((d,i)=>{
+    const hot=loads[i]===maxLoad;
+    html+=`<div class="sch-hd" style="background:${hot?'var(--poor-bg)':'var(--blue-soft)'};color:${hot?'var(--poor-tx)':'var(--good-tx)'}">${d}<span class="hc">${loads[i]} שיעורים</span></div>`;
+  });
+  html+=`</div>`;
+  // rows
+  SCH_PERIODS.forEach((per,p)=>{
+    html+=`<div class="sch-row"><div class="sch-time">${per.t}</div>`;
+    if(per.brk){
+      html+=`<div class="sch-brk">☕ הפסקה כללית · תורנות: ימים שני ורביעי</div>`;
+    }else{
+      SCH_DAYS.forEach((_,d)=>{
+        const c=SCH_GRID[p][d];const on=schSel.p===p&&schSel.d===d;
+        if(c.type==="lesson"){
+          html+=`<div class="sch-cell${on?' sel':''}" style="background:var(--blue-soft);color:var(--good-tx)"><div class="ct">${c.subject}</div><div class="cs">כיתה ${c.cls}</div></div>`;
+        }else{
+          const r=SCH_RECS[c.rec];
+          html+=`<div class="sch-cell window${on?' sel':''}" style="background:${r.best?'var(--mint-soft)':'#f4f8fb'};color:${r.best?'var(--exc-tx)':'var(--ink-soft)'}" onclick="schPick(${p},${d})"><div class="ct">${r.emoji} חלון פנוי</div><div class="cs">${r.best?'מומלץ ביותר':'המלצה חכמה'}</div></div>`;
+        }
+      });
+    }
+    html+=`</div>`;
+  });
+  $("schGrid").innerHTML=html;
+
+  // side panel
+  const cell=SCH_GRID[schSel.p]?SCH_GRID[schSel.p][schSel.d]:null;
+  const rec=cell&&cell.type==="window"?SCH_RECS[cell.rec]:null;
+  const busiestDay=SCH_DAYS[loads.indexOf(maxLoad)];
+  let side=`<div class="fcard rtlcard" style="margin-bottom:16px">
+    <div class="fc-title">✨ המלצה חכמה</div>`;
+  if(rec){
+    side+=`<div class="rec-card" style="background:${rec.best?'var(--mint-soft)':'#f4f8fb'};border:1.5px solid ${rec.best?'var(--mint)':'var(--line)'}">
+      <div class="rec-ico">${rec.emoji}</div>
+      <div class="rt" style="color:${rec.best?'var(--exc-tx)':'var(--ink)'}">${rec.t}${rec.best?' ⭐':''}</div>
+      <div class="rn">${rec.note}</div>
+      <div class="rec-meta">${SCH_DAYS[schSel.d]} · ${SCH_PERIODS[schSel.p].t}</div>
+    </div>`;
+  }else{
+    side+=`<p style="text-align:center;color:var(--ink-soft);padding:18px">בחרו חלון פנוי במערכת כדי לראות המלצה.</p>`;
+  }
+  side+=`</div>
+  <div class="fcard rtlcard">
+    <div class="fc-title">🧠 מדד עומס שבועי</div>
+    <div style="margin-top:12px">
+    ${SCH_DAYS.map((d,i)=>behBar(d,loads[i],maxLoad,loads[i]===maxLoad?"var(--poor-tx)":loads[i]<=3?"var(--mint)":"var(--blue)",`${loads[i]} שיעורים · ${windowsPerDay[i]} חלונות`)).join("")}
+    </div>
+    <div class="warn-box"><span class="we">⚠️</span><span class="wt">יום ${busiestDay} עמוס במיוחד — שקלו לשמר בו את ההפסקה המתודית.</span></div>
+  </div>`;
+  $("schSide").innerHTML=side;
+}
+function schPick(p,d){schSel={p,d};renderSchedule();}
 
 /* ===================== CLIPBOARD ===================== */
 function copyText(btn,text){const done=()=>{const o=btn.textContent;btn.textContent="✓ הועתק!";setTimeout(()=>btn.textContent=o,1400);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));}else fallbackCopy(text,done);}
